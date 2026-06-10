@@ -74,3 +74,8 @@ def setup_logging(
     )
     file_handler.setFormatter(JsonLinesFormatter())
     root.addHandler(file_handler)
+
+    # httpx logs full request URLs at INFO - including the Telegram bot token.
+    # Secrets must never reach the log file; WARNING level keeps real failures.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
