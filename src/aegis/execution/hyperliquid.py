@@ -25,6 +25,7 @@ TESTNET_URL = "https://api.hyperliquid-testnet.xyz"
 
 # /info is weight-limited; modest concurrency is deliberate politeness.
 _MAX_CONCURRENT_REQUESTS = 3
+_RETRIES = 5  # backoff 1s -> 16s; initial backfills burst hard enough to 429
 
 
 class HyperliquidMarketData(MarketData):
@@ -37,10 +38,27 @@ class HyperliquidMarketData(MarketData):
         await self._client.aclose()
 
     async def _info(self, payload: dict[str, Any]) -> Any:
-        async with self._semaphore:
-            response = await self._client.post(f"{self._base_url}/info", json=payload)
-        response.raise_for_status()
-        return response.json()
+        """POST /info with retry/backoff - the endpoint rate-limits bursts (429)."""
+        delay = 1.0
+        for attempt in range(_RETRIES):
+            async with self._semaphore:
+                try:
+                    response = await self._client.post(f"{self._base_url}/info", json=payload)
+                    response.raise_for_status()
+                    return response.json()
+                except (httpx.HTTPStatusError, httpx.TransportError) as exc:
+                    retryable = isinstance(exc, httpx.TransportError) or (
+                        exc.response.status_code in (429, 500, 502, 503)
+                    )
+                    if not retryable or attempt == _RETRIES - 1:
+                        raise
+                    logger.warning(
+                        "hyperliquid info retry",
+                        extra={"type": payload.get("type"), "attempt": attempt + 1},
+                    )
+            await asyncio.sleep(delay)
+            delay *= 2
+        raise AssertionError("unreachable")
 
     async def fetch_candles(
         self,
