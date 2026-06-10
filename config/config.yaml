@@ -1,0 +1,83 @@
+# Aegis runtime configuration - defaults per Aegis Concept.md v3.0.
+# Secrets do NOT go here; they live in .env (see .env.example).
+# Any value here can be overridden by an AEGIS_-prefixed env var where noted.
+
+mode: paper # paper | testnet | live  (env: AEGIS_MODE)
+
+risk:
+  # Tier risk fractions of CURRENT equity (Concept §10). 1R = tier fraction.
+  tiers:
+    passive: 0.0050
+    mid: 0.0075
+    aggressive: 0.0100
+  max_concurrent_risk_r: 3.0
+  correlation_trigger: 0.85 # collapse to shared 1R bucket above this
+  correlation_release: 0.75 # hysteresis release
+  correlation_min_observations: 90
+  slippage_gate_pct: 0.0008 # 0.08% of notional - cancel order above this
+  daily_breaker_multiple: 3.0 # daily halt at N x max single-trade risk
+  # Kill switch MUST be set from the Monte Carlo calibration (Concept §9.6)
+  # before mode=live. Deliberately null until then - config validation
+  # refuses to start live with this unset.
+  kill_switch_drawdown_pct: null
+
+strategy_b:
+  universe_size: 50
+  history_min_days: 365
+  selection_window_days: 180
+  fdr_alpha: 0.05 # Benjamini-Hochberg across the full pairwise scan
+  stability_subwindows: 3 # non-overlapping 60-day windows that must each pass
+  oos_check_days: 30 # most recent days excluded from selection, must stay stationary
+  half_life_min_hours: 4
+  half_life_max_hours: 72
+  z_window_half_life_multiple: 4 # rolling Z window = N x pair half-life
+  z_entry_percentile: 0.975 # per-pair empirical threshold (~2.0 for well-behaved pairs)
+  z_hard_stop: 3.0
+  z_scale_out: 1.0 # close 50% here, remainder at 0
+  time_stop_half_life_multiple: 2
+  min_edge_to_cost_ratio: 2.0 # expected convergence must clear round-trip cost by this
+  bar_timeframe: "1h"
+
+strategy_a:
+  # Paper-only until the three-gate promotion check passes (Concept §7).
+  ema_fast: 9
+  ema_slow: 21
+  rsi_period: 14
+  rsi_max_entry: 70
+  take_profit_pct: 0.06
+  stop_loss_pct: 0.03
+  signal_timeframe: "4h"
+
+scanner:
+  top_n_coins: 300
+  volume_multiple: 3.0
+  average_window_days: 20
+  interval_minutes: 60
+  # Variants are all logged for forward comparison (Concept §7):
+  # price_up_5 / price_flat / price_down
+
+regime:
+  adx_trend_threshold: 25
+  adx_sideways_threshold: 20
+  trend_size_factor: 0.5 # Strategy B size multiplier in trending regimes
+  timeframe: "4h"
+
+exchanges:
+  hyperliquid:
+    testnet: true
+    min_order_usd: 10.0
+    # Default fees - VERIFIED VIA API AT STARTUP, never trusted silently (Concept §13)
+    maker_fee: 0.00015
+    taker_fee: 0.00045
+  kraken:
+    maker_fee: 0.0025 # base tier <$10k 30-day volume
+    taker_fee: 0.0040
+
+monitoring:
+  telegram_enabled: true
+  daily_summary_hour_utc: 16 # ~midnight MYT
+  log_dir: "logs"
+  log_level: "INFO"
+
+persistence:
+  sqlite_path: "aegis.sqlite"

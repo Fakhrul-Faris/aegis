@@ -1,0 +1,32 @@
+# Secrets - never commit. API keys and wallet keys live in .env only.
+.env
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+uv.lock.tmp
+
+# Runtime artifacts
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# Research scratch (notebooks checked in deliberately only)
+research/scratch/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
