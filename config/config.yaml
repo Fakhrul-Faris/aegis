@@ -73,6 +73,16 @@ exchanges:
     maker_fee: 0.0025 # base tier <$10k 30-day volume
     taker_fee: 0.0040
 
+data:
+  timeframes: ["1h", "4h"]
+  initial_backfill_days: 30
+  hyperliquid_top_n: 50 # candle universe = top N perps by 24h volume
+  kraken_symbols: # Strategy A majors (paper phase); scanner widens coverage
+    - "BTC/USDT"
+    - "ETH/USDT"
+    - "SOL/USDT"
+    - "XRP/USDT"
+
 monitoring:
   telegram_enabled: true
   daily_summary_hour_utc: 16 # ~midnight MYT

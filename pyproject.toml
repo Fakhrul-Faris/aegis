@@ -5,11 +5,17 @@ description = "Autonomous crypto trading system - staged two-strategy bot (pairs
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "ccxt>=4.4",
+    "httpx>=0.27",
     "numpy>=1.26",
     "pandas>=2.2",
     "python-dotenv>=1.0",
     "pyyaml>=6.0",
 ]
+
+[project.scripts]
+aegis-ingest = "aegis.data.ingest:main"
+aegis-reconcile = "aegis.data.reconcile:main"
 
 [dependency-groups]
 dev = [

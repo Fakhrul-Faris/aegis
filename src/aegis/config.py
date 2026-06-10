@@ -105,6 +105,14 @@ class HyperliquidConfig:
 
 
 @dataclass(frozen=True)
+class DataConfig:
+    timeframes: tuple[str, ...]
+    initial_backfill_days: int
+    hyperliquid_top_n: int
+    kraken_symbols: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class MonitoringConfig:
     telegram_enabled: bool
     daily_summary_hour_utc: int
@@ -133,6 +141,7 @@ class AegisConfig:
     strategy_a: StrategyAConfig
     scanner: ScannerConfig
     regime: RegimeConfig
+    data: DataConfig
     hyperliquid: HyperliquidConfig
     kraken_fees: ExchangeFees
     monitoring: MonitoringConfig
@@ -185,6 +194,14 @@ def _validate(cfg: AegisConfig) -> None:
     if cfg.strategy_a.take_profit_pct <= cfg.strategy_a.stop_loss_pct:
         raise ConfigError("Strategy A take_profit_pct must exceed stop_loss_pct (positive R:R)")
 
+    from aegis.core.timeframes import TIMEFRAME_MS
+
+    for timeframe in cfg.data.timeframes:
+        if timeframe not in TIMEFRAME_MS:
+            raise ConfigError(f"Unknown data timeframe {timeframe!r}")
+    if cfg.data.initial_backfill_days < 1:
+        raise ConfigError("initial_backfill_days must be >= 1")
+
 
 def load_config(
     config_path: str | Path = "config/config.yaml",
@@ -208,6 +225,7 @@ def load_config(
     sa_raw = _require(raw, "strategy_a")
     scan_raw = _require(raw, "scanner")
     regime_raw = _require(raw, "regime")
+    data_raw = _require(raw, "data")
     ex_raw = _require(raw, "exchanges")
     mon_raw = _require(raw, "monitoring")
 
@@ -230,6 +248,12 @@ def load_config(
         strategy_a=StrategyAConfig(**sa_raw),
         scanner=ScannerConfig(**scan_raw),
         regime=RegimeConfig(**regime_raw),
+        data=DataConfig(
+            timeframes=tuple(data_raw["timeframes"]),
+            initial_backfill_days=data_raw["initial_backfill_days"],
+            hyperliquid_top_n=data_raw["hyperliquid_top_n"],
+            kraken_symbols=tuple(data_raw["kraken_symbols"]),
+        ),
         hyperliquid=HyperliquidConfig(
             testnet=hl_raw["testnet"],
             min_order_usd=hl_raw["min_order_usd"],
