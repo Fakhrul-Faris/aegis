@@ -21,6 +21,8 @@ logs/
 *.log
 *.sqlite
 *.sqlite3
+*.sqlite-shm
+*.sqlite-wal
 *.db
 
 # Research scratch (notebooks checked in deliberately only)
