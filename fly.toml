@@ -1,0 +1,21 @@
+# Fly.io worker app: the Aegis collector daemon (no HTTP service).
+# Deploy:    fly deploy
+# Secrets:   fly secrets set TELEGRAM_BOT_TOKEN=... (see .env.example for keys)
+# Volume:    fly volumes create aegis_data --size 1   (SQLite + logs live here)
+
+app = "aegis-collector"
+primary_region = "sin" # Singapore - closest region to Malaysia
+
+[build]
+  dockerfile = "Dockerfile"
+
+[mounts]
+  source = "aegis_data"
+  destination = "/data"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+
+[[restart]]
+  policy = "always"

@@ -234,7 +234,7 @@ async def scan_once(
     return stats
 
 
-async def _run(cfg: AegisConfig) -> ScanStats:
+async def run(cfg: AegisConfig) -> ScanStats:
     from aegis.core.models import Venue
     from aegis.execution import build_market_data
 
@@ -270,14 +270,14 @@ def main() -> None:
     if args.loop:
         while True:
             try:
-                asyncio.run(_run(cfg))
+                asyncio.run(run(cfg))
             except Exception as exc:
                 logger.exception("scanner run crashed")
                 asyncio.run(notify_crash(cfg, "scanner", exc))
             time.sleep(args.loop)
     else:
         try:
-            asyncio.run(_run(cfg))
+            asyncio.run(run(cfg))
         except Exception as exc:
             asyncio.run(notify_crash(cfg, "scanner", exc))
             raise

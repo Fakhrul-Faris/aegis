@@ -268,10 +268,14 @@ def load_config(
         monitoring=MonitoringConfig(
             telegram_enabled=mon_raw["telegram_enabled"],
             daily_summary_hour_utc=mon_raw["daily_summary_hour_utc"],
-            log_dir=mon_raw["log_dir"],
+            # Path overrides let containers relocate writable state to a
+            # mounted volume without touching the committed YAML.
+            log_dir=os.environ.get("AEGIS_LOG_DIR", mon_raw["log_dir"]),
             log_level=mon_raw["log_level"],
         ),
-        sqlite_path=_require(raw, "persistence")["sqlite_path"],
+        sqlite_path=os.environ.get(
+            "AEGIS_SQLITE_PATH", _require(raw, "persistence")["sqlite_path"]
+        ),
         secrets=Secrets(
             telegram_bot_token=os.environ.get("TELEGRAM_BOT_TOKEN") or None,
             telegram_chat_id=os.environ.get("TELEGRAM_CHAT_ID") or None,

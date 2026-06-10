@@ -14,9 +14,11 @@ dependencies = [
 ]
 
 [project.scripts]
+aegis-collect = "aegis.collector:main"
 aegis-ingest = "aegis.data.ingest:main"
 aegis-reconcile = "aegis.data.reconcile:main"
 aegis-scan = "aegis.data.scanner:main"
+aegis-summary = "aegis.monitor.summary:main"
 
 [dependency-groups]
 dev = [
