@@ -212,12 +212,22 @@ def main() -> None:
     cfg = load_config(args.config)
     setup_logging(cfg.monitoring.log_dir, cfg.monitoring.log_level)
 
+    from aegis.monitor.telegram import notify_crash
+
     if args.loop:
         while True:
-            asyncio.run(run_once(cfg))
+            try:
+                asyncio.run(run_once(cfg))
+            except Exception as exc:
+                logger.exception("ingest run crashed")
+                asyncio.run(notify_crash(cfg, "ingest", exc))
             time.sleep(args.loop)
     else:
-        asyncio.run(run_once(cfg))
+        try:
+            asyncio.run(run_once(cfg))
+        except Exception as exc:
+            asyncio.run(notify_crash(cfg, "ingest", exc))
+            raise
 
 
 if __name__ == "__main__":

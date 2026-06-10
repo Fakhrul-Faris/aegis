@@ -53,6 +53,9 @@ scanner:
   volume_multiple: 3.0
   average_window_days: 20
   interval_minutes: 60
+  min_history_hours: 48 # no flags for a coin until this much snapshot history exists
+  price_up_threshold_pct: 5.0 # variant boundaries (Concept §7)
+  price_down_threshold_pct: -2.0
   # Variants are all logged for forward comparison (Concept §7):
   # price_up_5 / price_flat / price_down
 

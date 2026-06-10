@@ -81,6 +81,9 @@ class ScannerConfig:
     volume_multiple: float
     average_window_days: int
     interval_minutes: int
+    min_history_hours: int
+    price_up_threshold_pct: float
+    price_down_threshold_pct: float
 
 
 @dataclass(frozen=True)

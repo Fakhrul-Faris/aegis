@@ -48,6 +48,15 @@ class KrakenMarketData(MarketData):
             for row in rows
         ]
 
+    async def fetch_tradable_bases(self) -> set[str]:
+        """Base assets of active spot markets - used by the scanner's on_kraken tag."""
+        markets = await self._exchange.load_markets()
+        return {
+            market["base"]
+            for market in markets.values()
+            if market.get("spot") and market.get("active") is not False
+        }
+
     async def fetch_top_of_book(self, symbol: str) -> tuple[float, float]:
         book = await self._exchange.fetch_order_book(symbol, limit=1)
         if not book["bids"] or not book["asks"]:

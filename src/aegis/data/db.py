@@ -164,6 +164,20 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
         PRIMARY KEY (venue, symbol, timeframe, open_time_ms)
     )
     """,
+    """
+    CREATE TABLE IF NOT EXISTS market_snapshots (
+        ts_ms                INTEGER NOT NULL,
+        coin_id              TEXT    NOT NULL,
+        symbol               TEXT,
+        price_usd            REAL,
+        vol24h_usd           REAL,
+        market_cap_usd       REAL,
+        price_change_1h_pct  REAL,
+        price_change_24h_pct REAL,
+        PRIMARY KEY (ts_ms, coin_id)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_snapshots_coin ON market_snapshots (coin_id, ts_ms)",
     "CREATE INDEX IF NOT EXISTS idx_scanner_flags_ts ON scanner_flags (ts_ms)",
     "CREATE INDEX IF NOT EXISTS idx_signals_ts ON signals (ts_ms)",
     "CREATE INDEX IF NOT EXISTS idx_fills_ts ON fills (ts_ms)",
@@ -275,6 +289,103 @@ def load_candles(
         )
         for row in conn.execute(query, params)
     ]
+
+
+# --- Market snapshot / scanner repository ----------------------------------
+
+
+def insert_market_snapshots(conn: sqlite3.Connection, ts_ms: int, rows: Iterable[dict]) -> int:
+    cursor = conn.executemany(
+        """
+        INSERT OR REPLACE INTO market_snapshots
+            (ts_ms, coin_id, symbol, price_usd, vol24h_usd, market_cap_usd,
+             price_change_1h_pct, price_change_24h_pct)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            (
+                ts_ms,
+                r["coin_id"],
+                r["symbol"],
+                r["price_usd"],
+                r["vol24h_usd"],
+                r["market_cap_usd"],
+                r["price_change_1h_pct"],
+                r["price_change_24h_pct"],
+            )
+            for r in rows
+        ],
+    )
+    conn.commit()
+    return cursor.rowcount
+
+
+def previous_snapshot(
+    conn: sqlite3.Connection, coin_id: str, before_ms: int, not_older_than_ms: int
+) -> tuple[int, float] | None:
+    """(ts_ms, vol24h_usd) of the most recent snapshot before ``before_ms``."""
+    row = conn.execute(
+        """
+        SELECT ts_ms, vol24h_usd FROM market_snapshots
+        WHERE coin_id = ? AND ts_ms < ? AND ts_ms >= ?
+        ORDER BY ts_ms DESC LIMIT 1
+        """,
+        (coin_id, before_ms, not_older_than_ms),
+    ).fetchone()
+    return (row[0], row[1]) if row else None
+
+
+def baseline_vol24h(
+    conn: sqlite3.Connection, coin_id: str, since_ms: int, before_ms: int
+) -> tuple[float | None, int]:
+    """(average 24h volume, snapshot count) over the baseline window."""
+    row = conn.execute(
+        """
+        SELECT AVG(vol24h_usd), COUNT(*) FROM market_snapshots
+        WHERE coin_id = ? AND ts_ms >= ? AND ts_ms < ?
+        """,
+        (coin_id, since_ms, before_ms),
+    ).fetchone()
+    return row[0], row[1]
+
+
+def insert_scanner_flag(
+    conn: sqlite3.Connection,
+    ts_ms: int,
+    coin_id: str,
+    symbol: str,
+    vol_1h_usd: float,
+    vol_avg_1h_usd: float,
+    volume_multiple: float,
+    price_change_1h_pct: float | None,
+    price_change_24h_pct: float | None,
+    variant: str,
+    on_kraken: bool,
+    context_json: str,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO scanner_flags
+            (ts_ms, coin_id, symbol, vol_1h_usd, vol_avg_1h_usd, volume_multiple,
+             price_change_1h_pct, price_change_24h_pct, variant, on_kraken,
+             context_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            ts_ms,
+            coin_id,
+            symbol,
+            vol_1h_usd,
+            vol_avg_1h_usd,
+            volume_multiple,
+            price_change_1h_pct,
+            price_change_24h_pct,
+            variant,
+            int(on_kraken),
+            context_json,
+        ),
+    )
+    conn.commit()
 
 
 def find_gaps(
