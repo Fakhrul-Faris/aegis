@@ -40,6 +40,7 @@ def test_schema_creates_all_tables(tmp_path):
         "slippage_log",
         "equity_snapshots",
         "regime_labels",
+        "soak_log",
     }
     assert expected <= tables
 

@@ -182,6 +182,15 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
     "CREATE INDEX IF NOT EXISTS idx_signals_ts ON signals (ts_ms)",
     "CREATE INDEX IF NOT EXISTS idx_fills_ts ON fills (ts_ms)",
     "CREATE INDEX IF NOT EXISTS idx_equity_ts ON equity_snapshots (ts_ms)",
+    """
+    CREATE TABLE IF NOT EXISTS soak_log (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        ts_ms       INTEGER NOT NULL,
+        event       TEXT    NOT NULL,
+        detail_json TEXT
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_soak_log_ts ON soak_log (ts_ms)",
 )
 
 

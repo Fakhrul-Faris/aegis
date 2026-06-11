@@ -151,6 +151,11 @@ class HyperliquidTrading(OrderExecutor, AccountState):
         order = await self._exchange.fetch_order(order_id, _market_symbol(symbol))
         return _STATUS_MAP.get(order.get("status"), "unknown")
 
+    async def fetch_open_order_count(self) -> int:
+        await self._ensure_markets()
+        orders = await self._exchange.fetch_open_orders()
+        return len(orders)
+
     async def fetch_fills(self, symbol: str, order_id: str) -> list[Fill]:
         await self._ensure_markets()
         trades = await self._exchange.fetch_my_trades(_market_symbol(symbol))

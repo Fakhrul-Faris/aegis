@@ -1,0 +1,24 @@
+# Fly.io worker: 7-day Hyperliquid testnet soak (P2.5).
+# Deploy:  fly deploy --config fly.testnet-soak.toml
+# Secrets:  same as collector + HL wallet (see deploy/testnet-soak.md)
+# Volume:   fly volumes create aegis_soak_data --size 1 -a aegis-testnet-soak
+
+app = "aegis-testnet-soak"
+primary_region = "sin"
+
+[build]
+  dockerfile = "Dockerfile.soak"
+
+[mounts]
+  source = "aegis_soak_data"
+  destination = "/data"
+
+[env]
+  AEGIS_MODE = "testnet"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+[[restart]]
+  policy = "always"

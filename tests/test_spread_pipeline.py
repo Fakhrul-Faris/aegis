@@ -1,6 +1,5 @@
 """Spread pipeline unit tests (fake executor)."""
 
-
 import numpy as np
 import pytest
 
