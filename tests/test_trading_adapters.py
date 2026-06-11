@@ -19,6 +19,7 @@ class FakeCcxt:
             "total": {"USDC": 987.65},
             "free": {"USDC": 900.0},
         }
+        self.spot_balance = {"total": {"USDC": 0.0}, "free": {}}
 
     async def load_markets(self):
         return {}
@@ -45,7 +46,9 @@ class FakeCcxt:
     async def fetch_my_trades(self, symbol):
         return self.trades
 
-    async def fetch_balance(self):
+    async def fetch_balance(self, params=None):
+        if params and params.get("type") == "spot":
+            return self.spot_balance
         return self.balance
 
     async def fetch_positions(self):
@@ -149,6 +152,13 @@ class TestHyperliquidOrders:
 class TestHyperliquidAccount:
     async def test_equity_from_margin_summary(self, trading):
         assert await trading.fetch_equity_usd() == pytest.approx(987.65)
+
+    async def test_equity_includes_spot_usdc_for_unified_accounts(self, trading, fake):
+        # Unified accounts: collateral lives in spot, and even the swap query
+        # returns a spot-style payload without marginSummary.
+        fake.balance = {"info": {"balances": []}, "total": {}}
+        fake.spot_balance = {"total": {"USDC": 999.0}, "free": {"USDC": 999.0}}
+        assert await trading.fetch_equity_usd() == pytest.approx(999.0)
 
     async def test_balances(self, trading):
         balances = await trading.fetch_balances()

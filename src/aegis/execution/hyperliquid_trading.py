@@ -159,10 +159,21 @@ class HyperliquidTrading(OrderExecutor, AccountState):
     # ---- AccountState --------------------------------------------------
 
     async def fetch_equity_usd(self) -> float:
+        """Perp account value + spot USDC - the risk-sizing base.
+
+        Unified accounts margin perps from the spot USDC balance, so the perp
+        marginSummary alone under-reports equity (it can read 0.0 with the
+        whole stack in spot). Summing both is correct in unified mode and
+        equally correct classically: idle spot USDC is still equity.
+        """
         await self._ensure_markets()
-        balance = await self._exchange.fetch_balance()
-        # Perp account value (margin + unrealized PnL) - the risk-sizing base.
-        return float(balance["info"]["marginSummary"]["accountValue"])
+        perp = await self._exchange.fetch_balance({"type": "swap"})
+        # Unified accounts return a spot-style payload with no marginSummary.
+        margin = (perp.get("info") or {}).get("marginSummary")
+        perp_value = float(margin["accountValue"]) if margin else 0.0
+        spot = await self._exchange.fetch_balance({"type": "spot"})
+        spot_usdc = float((spot.get("total") or {}).get("USDC") or 0.0)
+        return perp_value + spot_usdc
 
     async def fetch_balances(self) -> list[Balance]:
         await self._ensure_markets()
