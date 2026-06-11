@@ -19,6 +19,7 @@ uv.lock.tmp
 # Runtime artifacts
 logs/
 *.log
+soak_state.json
 *.sqlite
 *.sqlite3
 *.sqlite-shm
