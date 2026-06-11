@@ -20,6 +20,7 @@ import argparse
 import csv
 import io
 import logging
+import time
 import zipfile
 from datetime import UTC, datetime
 
@@ -111,6 +112,24 @@ def month_range(start: str, end: str | None = None) -> list[tuple[int, int]]:
     return months
 
 
+def _get_with_retry(client: httpx.Client, url: str, attempts: int = 4) -> httpx.Response:
+    """Long archive pulls hit transient disconnects; retry with backoff."""
+    delay = 2.0
+    for attempt in range(attempts):
+        try:
+            response = client.get(url)
+            if response.status_code >= 500:
+                raise httpx.HTTPStatusError("server error", request=response.request, response=response)
+            return response
+        except (httpx.TransportError, httpx.HTTPStatusError):
+            if attempt == attempts - 1:
+                raise
+            logger.warning("download retry", extra={"url": url, "attempt": attempt + 1})
+            time.sleep(delay)
+            delay *= 2
+    raise AssertionError("unreachable")
+
+
 def download_history(
     db_path: str,
     bases: list[str],
@@ -127,7 +146,7 @@ def download_history(
                 inserted = 0
                 for year, month in month_range(start, end):
                     url = ARCHIVE_URL.format(pair=pair, timeframe=timeframe, year=year, month=month)
-                    response = client.get(url)
+                    response = _get_with_retry(client, url)
                     if response.status_code == 404:
                         continue  # symbol not listed yet that month
                     response.raise_for_status()
