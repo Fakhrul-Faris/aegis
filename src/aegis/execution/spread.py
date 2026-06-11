@@ -8,7 +8,9 @@ have used; it remains available if the strategy pivots to basket/stat-arb.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import time
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -16,6 +18,16 @@ from aegis.core.interfaces import OrderExecutor
 from aegis.core.models import OrderRequest, OrderType, Side, Venue
 
 logger = logging.getLogger(__name__)
+
+_IOC_MISS_MARKERS = (
+    "could not immediately match",
+    "price too far from oracle",
+)
+
+
+def _ioc_order_missed(exc: BaseException) -> bool:
+    msg = str(exc).lower()
+    return any(marker in msg for marker in _IOC_MISS_MARKERS)
 
 
 class SpreadLegStatus(StrEnum):
@@ -42,6 +54,7 @@ class SpreadExecutionResult:
     leg1_status: SpreadLegStatus = SpreadLegStatus.PENDING
     leg2_status: SpreadLegStatus = SpreadLegStatus.PENDING
     flattened: bool = False
+    flatten_elapsed_ms: float | None = None
     error: str | None = None
 
 
@@ -63,6 +76,119 @@ class SpreadExecutor:
         rank_a = self._liquidity.get(leg_a.symbol, 0.0)
         rank_b = self._liquidity.get(leg_b.symbol, 0.0)
         return (leg_a, leg_b) if rank_a >= rank_b else (leg_b, leg_a)
+
+    async def _wait_filled(self, symbol: str, order_id: str, *, timeout_s: float = 10.0) -> bool:
+        deadline = time.perf_counter() + timeout_s
+        while time.perf_counter() < deadline:
+            status = await self._executor.fetch_order_status(symbol, order_id)
+            if status == "filled":
+                return True
+            if status in ("canceled", "rejected"):
+                return False
+            await asyncio.sleep(0.05)
+        return False
+
+    async def _flatten_leg1(
+        self,
+        first: SpreadLeg,
+        result: SpreadExecutionResult,
+        *,
+        venue: Venue,
+        t0: float,
+    ) -> None:
+        await self._executor.place_order(
+            OrderRequest(
+                venue=venue,
+                symbol=first.symbol,
+                side=Side.SELL if first.side is Side.BUY else Side.BUY,
+                order_type=OrderType.MARKET,
+                quantity=first.quantity,
+                price=first.limit_price,
+                reduce_only=True,
+            )
+        )
+        result.flattened = True
+        result.flatten_elapsed_ms = (time.perf_counter() - t0) * 1000
+        result.leg2_status = SpreadLegStatus.FAILED
+        result.leg1_status = SpreadLegStatus.FLATTENED
+        logger.warning(
+            "spread leg2 miss — leg1 flattened",
+            extra={
+                "leg1": first.symbol,
+                "flatten_ms": result.flatten_elapsed_ms,
+            },
+        )
+
+    async def execute_leg2_miss_drill(
+        self,
+        leg_a: SpreadLeg,
+        leg_b: SpreadLeg,
+        *,
+        venue: Venue = Venue.HYPERLIQUID,
+        leg1_fill_timeout_s: float = 15.0,
+    ) -> SpreadExecutionResult:
+        """Testnet drill: IOC leg-1 fill, deliberately unfillable leg-2, flatten leg-1.
+
+        ``leg_a`` / ``leg_b`` limit prices must be set by the caller: leg-1 aggressive
+        enough to cross, leg-2 impossible to match.
+        """
+        result = SpreadExecutionResult()
+        first, second = self._order_liquid_first(leg_a, leg_b)
+
+        try:
+            try:
+                leg1_id = await self._executor.place_order(
+                    OrderRequest(
+                        venue=venue,
+                        symbol=first.symbol,
+                        side=first.side,
+                        order_type=OrderType.LIMIT_IOC,
+                        quantity=first.quantity,
+                        price=first.limit_price,
+                    )
+                )
+            except Exception as exc:
+                if _ioc_order_missed(exc):
+                    result.error = "leg1_did_not_fill"
+                    result.leg1_status = SpreadLegStatus.FAILED
+                    return result
+                raise
+            result.leg1_order_id = leg1_id
+            if not await self._wait_filled(first.symbol, leg1_id, timeout_s=leg1_fill_timeout_s):
+                result.error = "leg1_did_not_fill"
+                result.leg1_status = SpreadLegStatus.FAILED
+                return result
+
+            result.leg1_status = SpreadLegStatus.FILLED
+            try:
+                leg2_id = await self._executor.place_order(
+                    OrderRequest(
+                        venue=venue,
+                        symbol=second.symbol,
+                        side=second.side,
+                        order_type=OrderType.LIMIT_IOC,
+                        quantity=second.quantity,
+                        price=second.limit_price,
+                    )
+                )
+                result.leg2_order_id = leg2_id
+                leg2_status = await self._executor.fetch_order_status(second.symbol, leg2_id)
+                if leg2_status == "filled":
+                    result.leg2_status = SpreadLegStatus.FILLED
+                    result.error = "leg2_unexpectedly_filled"
+                    return result
+            except Exception as exc:
+                if not _ioc_order_missed(exc):
+                    raise
+                logger.info("leg2 IOC missed (venue rejected)", extra={"reason": str(exc)})
+
+            t0 = time.perf_counter()
+            await self._flatten_leg1(first, result, venue=venue, t0=t0)
+        except Exception as exc:
+            result.error = repr(exc)
+            result.leg1_status = SpreadLegStatus.FAILED
+            logger.exception("leg2 miss drill failed")
+        return result
 
     async def execute(
         self,
@@ -102,40 +228,29 @@ class SpreadExecutor:
                 if second.side is Side.BUY
                 else 1 - self._max_leg2_slippage
             )
-            leg2_id = await self._executor.place_order(
-                OrderRequest(
-                    venue=venue,
-                    symbol=second.symbol,
-                    side=second.side,
-                    order_type=OrderType.LIMIT_IOC,
-                    quantity=second.quantity,
-                    price=ioc_price,
+            try:
+                leg2_id = await self._executor.place_order(
+                    OrderRequest(
+                        venue=venue,
+                        symbol=second.symbol,
+                        side=second.side,
+                        order_type=OrderType.LIMIT_IOC,
+                        quantity=second.quantity,
+                        price=ioc_price,
+                    )
                 )
-            )
-            result.leg2_order_id = leg2_id
-            leg2_status = await self._executor.fetch_order_status(second.symbol, leg2_id)
-            if leg2_status == "filled":
-                result.leg2_status = SpreadLegStatus.FILLED
-                return result
+                result.leg2_order_id = leg2_id
+                leg2_status = await self._executor.fetch_order_status(second.symbol, leg2_id)
+                if leg2_status == "filled":
+                    result.leg2_status = SpreadLegStatus.FILLED
+                    return result
+            except Exception as exc:
+                if not _ioc_order_missed(exc):
+                    raise
+                logger.info("leg2 IOC missed (venue rejected)", extra={"reason": str(exc)})
 
-            # Leg 2 missed — flatten leg 1 immediately (Concept §8).
-            await self._executor.place_order(
-                OrderRequest(
-                    venue=venue,
-                    symbol=first.symbol,
-                    side=Side.SELL if first.side is Side.BUY else Side.BUY,
-                    order_type=OrderType.MARKET,
-                    quantity=first.quantity,
-                    reduce_only=True,
-                )
-            )
-            result.flattened = True
-            result.leg2_status = SpreadLegStatus.FAILED
-            result.leg1_status = SpreadLegStatus.FLATTENED
-            logger.warning(
-                "spread leg2 miss — leg1 flattened",
-                extra={"leg1": first.symbol, "leg2": second.symbol},
-            )
+            t0 = time.perf_counter()
+            await self._flatten_leg1(first, result, venue=venue, t0=t0)
         except Exception as exc:
             result.error = repr(exc)
             result.leg1_status = SpreadLegStatus.FAILED

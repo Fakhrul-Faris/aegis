@@ -70,6 +70,19 @@ class HyperliquidTrading(OrderExecutor, AccountState):
             await self._exchange.load_markets()
             self._markets_loaded = True
 
+    async def fetch_oracle_price(self, symbol: str) -> float:
+        """Oracle price — HL validates order bounds against this, not L2 mid."""
+        await self._ensure_markets()
+        ticker = await self._exchange.fetch_ticker(_market_symbol(symbol))
+        info = ticker.get("info") or {}
+        if info.get("oraclePx") is not None:
+            return float(info["oraclePx"])
+        if info.get("markPx") is not None:
+            return float(info["markPx"])
+        if ticker.get("last") is not None:
+            return float(ticker["last"])
+        raise RuntimeError(f"No oracle price for {symbol}")
+
     # ---- OrderExecutor -------------------------------------------------
 
     async def place_order(self, request: OrderRequest) -> str:
@@ -85,12 +98,18 @@ class HyperliquidTrading(OrderExecutor, AccountState):
             params["timeInForce"] = "IOC"
         elif request.order_type is OrderType.MARKET:
             order_type = "market"
+            if request.price is None:
+                raise ValueError(
+                    "Hyperliquid market orders require price as the slippage reference"
+                )
         else:
             # Venue-native stops are attached by the two-leg executor (P2.3).
             raise NotImplementedError(f"order type {request.order_type} arrives with P2.3")
 
         if request.reduce_only:
             params["reduceOnly"] = True
+        if request.order_type is OrderType.MARKET:
+            params["slippage"] = "0.01"
         if request.client_order_id:
             params["clientOrderId"] = request.client_order_id
 
