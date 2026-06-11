@@ -426,3 +426,161 @@ def find_gaps(
         if cur - prev > interval_ms:
             gaps.append((prev + interval_ms, cur))
     return gaps
+
+
+# --- Execution audit trail -------------------------------------------------
+
+
+def insert_order(
+    conn: sqlite3.Connection,
+    *,
+    client_order_id: str | None,
+    venue_order_id: str | None,
+    ts_ms: int,
+    venue: str,
+    symbol: str,
+    side: str,
+    order_type: str,
+    quantity: float,
+    price: float | None,
+    reduce_only: bool,
+    status: str,
+    context_json: str | None = None,
+) -> int:
+    cursor = conn.execute(
+        """
+        INSERT INTO orders
+            (client_order_id, venue_order_id, ts_ms, venue, symbol, side,
+             order_type, quantity, price, reduce_only, status, context_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            client_order_id,
+            venue_order_id,
+            ts_ms,
+            venue,
+            symbol,
+            side,
+            order_type,
+            quantity,
+            price,
+            int(reduce_only),
+            status,
+            context_json,
+        ),
+    )
+    conn.commit()
+    return int(cursor.lastrowid)
+
+
+def update_order_status(conn: sqlite3.Connection, venue_order_id: str, status: str) -> None:
+    conn.execute(
+        "UPDATE orders SET status = ? WHERE venue_order_id = ?",
+        (status, venue_order_id),
+    )
+    conn.commit()
+
+
+def insert_fill(
+    conn: sqlite3.Connection,
+    *,
+    ts_ms: int,
+    venue: str,
+    symbol: str,
+    venue_order_id: str | None,
+    client_order_id: str | None,
+    side: str,
+    quantity: float,
+    price: float,
+    fee: float,
+    is_maker: bool,
+) -> int:
+    cursor = conn.execute(
+        """
+        INSERT INTO fills
+            (ts_ms, venue, symbol, venue_order_id, client_order_id, side,
+             quantity, price, fee, is_maker)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            ts_ms,
+            venue,
+            symbol,
+            venue_order_id,
+            client_order_id,
+            side,
+            quantity,
+            price,
+            fee,
+            int(is_maker),
+        ),
+    )
+    conn.commit()
+    return int(cursor.lastrowid)
+
+
+def fills_for_order(conn: sqlite3.Connection, venue_order_id: str) -> list[tuple]:
+    return conn.execute(
+        """
+        SELECT quantity, price, fee, is_maker FROM fills
+        WHERE venue_order_id = ?
+        """,
+        (venue_order_id,),
+    ).fetchall()
+
+
+def insert_slippage(
+    conn: sqlite3.Connection,
+    *,
+    ts_ms: int,
+    venue: str,
+    symbol: str,
+    side: str,
+    expected_price: float,
+    fill_price: float | None,
+    slippage_pct: float | None,
+    gate_triggered: bool,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO slippage_log
+            (ts_ms, venue, symbol, side, expected_price, fill_price,
+             slippage_pct, gate_triggered)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            ts_ms,
+            venue,
+            symbol,
+            side,
+            expected_price,
+            fill_price,
+            slippage_pct,
+            int(gate_triggered),
+        ),
+    )
+    conn.commit()
+
+
+def insert_equity_snapshot(
+    conn: sqlite3.Connection,
+    *,
+    ts_ms: int,
+    venue: str,
+    equity_usd: float,
+    mode: str,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO equity_snapshots (ts_ms, venue, equity_usd, mode)
+        VALUES (?, ?, ?, ?)
+        """,
+        (ts_ms, venue, equity_usd, mode),
+    )
+    conn.commit()
+
+
+def count_fills(conn: sqlite3.Connection, venue: str | None = None) -> int:
+    if venue is None:
+        return conn.execute("SELECT COUNT(*) FROM fills").fetchone()[0]
+    return conn.execute("SELECT COUNT(*) FROM fills WHERE venue = ?", (venue,)).fetchone()[0]

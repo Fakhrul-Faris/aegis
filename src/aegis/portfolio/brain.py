@@ -32,13 +32,14 @@ from aegis.strategy.swing import evaluate_entry_at_bar, precompute_indicators
 logger = logging.getLogger(__name__)
 
 
-def _insert_equity_snapshot(conn, equity: float) -> None:
-    ts_ms = int(time.time() * 1000)
-    conn.execute(
-        "INSERT INTO equity_snapshots (ts_ms, equity_usd, context_json) VALUES (?, ?, ?)",
-        (ts_ms, equity, json.dumps({"source": "portfolio_cycle"})),
+def _insert_equity_snapshot(conn, equity: float, mode: str) -> None:
+    db.insert_equity_snapshot(
+        conn,
+        ts_ms=int(time.time() * 1000),
+        venue="portfolio",
+        equity_usd=equity,
+        mode=mode,
     )
-    conn.commit()
 
 
 def _insert_signal(
@@ -121,7 +122,7 @@ async def run_cycle(cfg, conn, risk: RiskEngine, equity: float = 1000.0) -> None
     finally:
         await md.close()
 
-    _insert_equity_snapshot(conn, equity)
+    _insert_equity_snapshot(conn, equity, cfg.mode)
 
 
 async def run_once(cfg_path: str = "config/config.yaml") -> None:
