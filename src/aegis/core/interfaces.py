@@ -47,6 +47,10 @@ class OrderExecutor(ABC):
     async def cancel_order(self, symbol: str, order_id: str) -> None: ...
 
     @abstractmethod
+    async def fetch_order_status(self, symbol: str, order_id: str) -> str:
+        """Normalized status: open | filled | canceled | rejected | unknown."""
+
+    @abstractmethod
     async def fetch_fills(self, symbol: str, order_id: str) -> list[Fill]:
         """All fills for an order. Empty list = resting/unfilled."""
 

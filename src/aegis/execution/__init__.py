@@ -17,3 +17,28 @@ def build_market_data(venue: Venue, testnet: bool = False):
 
         return KrakenMarketData()
     raise ValueError(f"No market data adapter for venue {venue}")
+
+
+def build_trading(venue: Venue, secrets, testnet: bool = True):
+    """Authenticated executor + account state for one venue.
+
+    ``secrets`` is aegis.config.Secrets; this factory is the only place that
+    maps secret fields to venue clients.
+    """
+    if venue is Venue.HYPERLIQUID:
+        if not (secrets.hyperliquid_wallet_address and secrets.hyperliquid_private_key):
+            raise ValueError("Hyperliquid wallet address + private key required in .env")
+        from aegis.execution.hyperliquid_trading import HyperliquidTrading
+
+        return HyperliquidTrading(
+            wallet_address=secrets.hyperliquid_wallet_address,
+            private_key=secrets.hyperliquid_private_key,
+            testnet=testnet,
+        )
+    if venue is Venue.KRAKEN:
+        if not (secrets.kraken_api_key and secrets.kraken_api_secret):
+            raise ValueError("Kraken API key + secret required in .env")
+        from aegis.execution.kraken import KrakenTrading
+
+        return KrakenTrading(api_key=secrets.kraken_api_key, api_secret=secrets.kraken_api_secret)
+    raise ValueError(f"No trading adapter for venue {venue}")
