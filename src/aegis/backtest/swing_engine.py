@@ -18,7 +18,12 @@ import pandas as pd
 
 from aegis.config import ExchangeFees, RiskConfig, StrategyAConfig
 from aegis.risk.sizing import concurrent_risk_allows, size_position
-from aegis.strategy.swing import SwingExit, evaluate_entry, evaluate_exit
+from aegis.strategy.swing import (
+    SwingExit,
+    evaluate_entry_at_bar,
+    evaluate_exit,
+    precompute_indicators,
+)
 
 
 @dataclass(frozen=True)
@@ -109,16 +114,29 @@ def run_swing_backtest(
 
     open_pos: dict[str, tuple[int, float, float, float, str]] = {}
     # symbol -> (entry_bar, entry_price, risk_amount, risk_r, tier)
+    indicators: dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]] = {}
+    for symbol in prices.columns:
+        closes = prices[symbol].to_numpy(dtype=float)
+        indicators[symbol] = precompute_indicators(closes, cfg_a)
 
     for bar in range(warmup, len(prices)):
         for symbol in prices.columns:
             closes = prices[symbol].to_numpy(dtype=float)
             if np.isnan(closes[bar]):
                 continue
+            fast, slow, rs = indicators[symbol]
 
             if symbol in open_pos:
                 entry_bar, entry_price, risk_amt, risk_r, tier = open_pos[symbol]
-                action = evaluate_exit(entry_price, float(closes[bar]), bar, closes, cfg_a)
+                action = evaluate_exit(
+                    entry_price,
+                    float(closes[bar]),
+                    bar,
+                    closes,
+                    cfg_a,
+                    fast=fast,
+                    slow=slow,
+                )
                 if action is SwingExit.HOLD:
                     continue
                 exit_price = float(closes[bar])
@@ -144,7 +162,7 @@ def run_swing_backtest(
             if one_position_per_symbol and symbol in open_pos:
                 continue
 
-            entry = evaluate_entry(bar, closes, cfg_a)
+            entry = evaluate_entry_at_bar(bar, closes, fast, slow, rs, cfg_a)
             if entry is None:
                 continue
 

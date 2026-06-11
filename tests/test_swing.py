@@ -54,9 +54,7 @@ class TestEntry:
     def test_rsi_too_high_blocks_entry(self, cfg_a, monkeypatch):
         closes = np.linspace(100, 110, 50)
         bar = 30
-        monkeypatch.setattr(
-            "aegis.strategy.swing.rsi", lambda _v, _p: np.full(50, 80.0)
-        )
+        monkeypatch.setattr("aegis.strategy.swing.rsi", lambda _v, _p: np.full(50, 80.0))
         monkeypatch.setattr(
             "aegis.strategy.swing.ema",
             lambda _v, p: np.full(50, 105.0) if p == cfg_a.ema_fast else np.full(50, 100.0),

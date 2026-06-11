@@ -136,6 +136,9 @@ def evaluate_exit(
     bar: int,
     closes: np.ndarray,
     cfg: StrategyAConfig,
+    *,
+    fast: np.ndarray | None = None,
+    slow: np.ndarray | None = None,
 ) -> SwingExit:
     """Exit checks ordered: stop before profit before signal exit."""
     pnl_pct = (current_price - entry_price) / entry_price
@@ -144,8 +147,39 @@ def evaluate_exit(
     if pnl_pct >= cfg.take_profit_pct:
         return SwingExit.TAKE_PROFIT
 
-    fast = ema(closes, cfg.ema_fast)
-    slow = ema(closes, cfg.ema_slow)
+    if fast is None or slow is None:
+        fast = ema(closes, cfg.ema_fast)
+        slow = ema(closes, cfg.ema_slow)
     if detect_ema_cross_down(fast, slow, bar):
         return SwingExit.EMA_CROSS
     return SwingExit.HOLD
+
+
+def precompute_indicators(
+    closes: np.ndarray, cfg: StrategyAConfig
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """EMA fast/slow + RSI once per series — backtests call this, not per-bar."""
+    return ema(closes, cfg.ema_fast), ema(closes, cfg.ema_slow), rsi(closes, cfg.rsi_period)
+
+
+def evaluate_entry_at_bar(
+    bar: int,
+    closes: np.ndarray,
+    fast: np.ndarray,
+    slow: np.ndarray,
+    rs: np.ndarray,
+    cfg: StrategyAConfig,
+    anomaly_flags: np.ndarray | None = None,
+    require_anomaly: bool = False,
+) -> SwingEntry | None:
+    """Entry using precomputed indicators (live engine + backtest hot path)."""
+    if not detect_ema_cross_up(fast, slow, bar):
+        return None
+    if np.isnan(rs[bar]) or rs[bar] >= cfg.rsi_max_entry:
+        return None
+    has_anomaly = bool(anomaly_flags[bar]) if anomaly_flags is not None else False
+    if require_anomaly and not has_anomaly:
+        return None
+    tier = classify_tier(ema_cross=True, anomaly=has_anomaly)
+    assert tier is not None
+    return SwingEntry(bar=bar, price=float(closes[bar]), tier=tier, rsi=float(rs[bar]))
