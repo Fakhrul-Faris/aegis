@@ -107,6 +107,79 @@ def test_open_candle_is_excluded(tmp_path):
     assert db.last_candle_open_ms(conn, Venue.HYPERLIQUID, "ETH", "1h") == BASE + 9 * H1
 
 
+def test_backward_extension_deepens_existing_series(tmp_path):
+    """Raising initial_backfill_days must deepen an existing DB, not just
+    roll it forward - the screening/backtest history depends on it."""
+    conn = db.connect(tmp_path / "t.sqlite")
+    now_ms = BASE + 96 * H1
+    venue = FakeVenue(_series(BASE, 96))
+
+    # First run with a shallow setting: only the last 24h get stored.
+    asyncio.run(
+        ingest_series(
+            venue,
+            conn,
+            Venue.HYPERLIQUID,
+            "ETH",
+            "1h",
+            initial_backfill_days=1,
+            now_ms=now_ms,
+        )
+    )
+    assert db.first_candle_open_ms(conn, Venue.HYPERLIQUID, "ETH", "1h") == BASE + 72 * H1
+
+    # Config deepened to 4 days: the same series must extend BACKWARD.
+    stats = asyncio.run(
+        ingest_series(
+            venue,
+            conn,
+            Venue.HYPERLIQUID,
+            "ETH",
+            "1h",
+            initial_backfill_days=4,
+            now_ms=now_ms,
+        )
+    )
+    assert stats.inserted == 72
+    assert db.first_candle_open_ms(conn, Venue.HYPERLIQUID, "ETH", "1h") == BASE
+    assert stats.gaps_unfilled == 0
+    assert db.candle_count_total(conn) == 96
+
+
+def test_backward_extension_stops_when_venue_has_no_older_data(tmp_path):
+    conn = db.connect(tmp_path / "t.sqlite")
+    now_ms = BASE + 48 * H1
+    venue = FakeVenue(_series(BASE, 48))  # venue history starts at BASE
+
+    asyncio.run(
+        ingest_series(
+            venue,
+            conn,
+            Venue.HYPERLIQUID,
+            "ETH",
+            "1h",
+            initial_backfill_days=2,
+            now_ms=now_ms,
+        )
+    )
+    calls_before = venue.calls
+    # Ask for 30 days the venue cannot serve: one probe, no loop, no crash.
+    stats = asyncio.run(
+        ingest_series(
+            venue,
+            conn,
+            Venue.HYPERLIQUID,
+            "ETH",
+            "1h",
+            initial_backfill_days=30,
+            now_ms=now_ms,
+        )
+    )
+    assert stats.inserted == 0
+    assert venue.calls <= calls_before + 2  # catch-up check + single probe
+    assert db.candle_count_total(conn) == 48
+
+
 def test_gap_repair_refetches_missing_bars(tmp_path):
     conn = db.connect(tmp_path / "t.sqlite")
     now_ms = BASE + 24 * H1

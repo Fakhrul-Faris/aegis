@@ -11,7 +11,7 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parent.parent / "src" / "aegis"
 
 FORBIDDEN_PREFIXES = ("ccxt", "hyperliquid", "websockets", "krakenex", "ib_insync")
-GUARDED_PACKAGES = ("strategy", "risk", "portfolio", "data", "monitor", "core")
+GUARDED_PACKAGES = ("strategy", "risk", "portfolio", "data", "monitor", "core", "backtest")
 
 
 def _imports_of(path: Path) -> list[str]:

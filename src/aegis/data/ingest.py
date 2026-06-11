@@ -103,6 +103,31 @@ async def ingest_series(
         if len(batch) < 2:
             break
 
+    # Backward extension: when initial_backfill_days grows (e.g. 30 -> 210 for
+    # pair screening + backtests), existing series must deepen too, not just
+    # roll forward. Page from the target start up to the earliest stored bar;
+    # venues that cannot serve that far back return only newer data and the
+    # loop stops after one probe.
+    target_start = now - initial_backfill_days * 86_400_000
+    first = db.first_candle_open_ms(conn, venue, symbol, timeframe)
+    cursor = target_start
+    while first is not None and cursor + interval < first:
+        batch = await market_data.fetch_candles(
+            symbol,
+            timeframe,
+            since=datetime.fromtimestamp(cursor / 1000, tz=UTC),
+            limit=_PAGE_LIMIT,
+        )
+        older = [
+            c
+            for c in _closed_only(batch, interval, now)
+            if int(c.open_time.timestamp() * 1000) < first
+        ]
+        if not older:
+            break
+        stats.inserted += db.upsert_candles(conn, older)
+        cursor = int(older[-1].open_time.timestamp() * 1000) + interval
+
     # Gap repair: one refetch attempt per gap, then count what remains.
     gaps = db.find_gaps(conn, venue, symbol, timeframe, interval)
     stats.gaps_found = len(gaps)

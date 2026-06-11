@@ -78,7 +78,9 @@ exchanges:
 
 data:
   timeframes: ["1h", "4h"]
-  initial_backfill_days: 30
+  # 210d = screening's 180d selection window + 30d OOS holdout. Hyperliquid
+  # serves ~5000 candles/series (~208d of 1h) - the ingester takes what exists.
+  initial_backfill_days: 210
   hyperliquid_top_n: 50 # candle universe = top N perps by 24h volume
   kraken_symbols: # Strategy A majors (paper phase); scanner widens coverage
     - "BTC/USDT"

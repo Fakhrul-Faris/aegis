@@ -255,6 +255,19 @@ def last_candle_open_ms(
     return row[0]
 
 
+def first_candle_open_ms(
+    conn: sqlite3.Connection, venue: Venue, symbol: str, timeframe: str
+) -> int | None:
+    row = conn.execute(
+        """
+        SELECT MIN(open_time_ms) FROM candles
+        WHERE venue = ? AND symbol = ? AND timeframe = ?
+        """,
+        (venue.value, symbol, timeframe),
+    ).fetchone()
+    return row[0]
+
+
 def load_candles(
     conn: sqlite3.Connection,
     venue: Venue,

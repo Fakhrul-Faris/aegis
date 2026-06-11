@@ -21,6 +21,8 @@ aegis-reconcile = "aegis.data.reconcile:main"
 aegis-scan = "aegis.data.scanner:main"
 aegis-summary = "aegis.monitor.summary:main"
 aegis-testnet-check = "aegis.execution.testnet_check:main"
+aegis-backtest = "aegis.backtest.run:main"
+aegis-download = "aegis.data.download:main"
 
 [dependency-groups]
 dev = [

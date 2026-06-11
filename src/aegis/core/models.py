@@ -15,6 +15,9 @@ from enum import StrEnum
 class Venue(StrEnum):
     KRAKEN = "kraken"
     HYPERLIQUID = "hyperliquid"
+    # Research data source only (P1.6 backtests need multi-year history that
+    # trading venues do not serve). Never a trading venue.
+    BINANCE = "binance"
 
 
 class Side(StrEnum):
