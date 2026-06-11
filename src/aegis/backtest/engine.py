@@ -202,6 +202,10 @@ def run_backtest(
         for key, pair in active.items():
             a = values[key[0]]
             b = values[key[1]]
+            # Late listings / delistings show up as NaN; freeze the pair for
+            # that bar rather than poisoning the Kalman state.
+            if not (np.isfinite(a[bar]) and np.isfinite(b[bar])):
+                continue
             beta = pair.kalman.update(a[bar], b[bar])
 
             held = open_positions.get(key)
