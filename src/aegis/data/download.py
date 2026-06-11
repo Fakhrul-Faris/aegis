@@ -119,7 +119,9 @@ def _get_with_retry(client: httpx.Client, url: str, attempts: int = 4) -> httpx.
         try:
             response = client.get(url)
             if response.status_code >= 500:
-                raise httpx.HTTPStatusError("server error", request=response.request, response=response)
+                raise httpx.HTTPStatusError(
+                    "server error", request=response.request, response=response
+                )
             return response
         except (httpx.TransportError, httpx.HTTPStatusError):
             if attempt == attempts - 1:
