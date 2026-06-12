@@ -12,6 +12,7 @@ Installs three launchd agents that also fire on boot/login:
 - `com.aegis.scanner` - CoinGecko volume anomaly scanner
 - `com.aegis.portfolio` - Strategy A paper cycle every 4h (`mode=paper`)
 - `com.aegis.kpi` - weekly KPI report (Sunday 17:00 UTC)
+- `com.aegis.telegrambot` - read-only Telegram commands (`/status`, `/paper`, …)
 
 Both alert Telegram on crash. Check health:
 

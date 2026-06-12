@@ -20,6 +20,7 @@ uv run aegis-doctor    # fix any issues before trusting the stack
 | `launchctl list \| grep com.aegis` | Daily | second column `0` for each agent |
 | `uv run aegis-summary` | Daily (or read Telegram) | snapshots > 0, flags accumulating |
 | `uv run aegis-kpi-report --print-only` | Sunday | fills Section 5 row |
+| Telegram `/status`, `/paper`, `/health` | Anytime | read-only bot menu |
 | `uv run aegis-breaker-drill` | Once (M4 gate) | exit 0 |
 | `fly status -a aegis-collector` | Weekly | machine started |
 | `fly logs -a aegis-testnet-soak` | During soak (→ Jun 18) | no crash loops |
@@ -32,6 +33,7 @@ uv run aegis-doctor    # fix any issues before trusting the stack
 | `com.aegis.scanner` | hourly :08 | CoinGecko anomaly flags |
 | `com.aegis.portfolio` | every 4h | Strategy A paper cycle |
 | `com.aegis.kpi` | Sun 17:00 UTC | Weekly KPI → Telegram + Section 5 |
+| `com.aegis.telegrambot` | always | Read-only Telegram command bot |
 
 Agents are staggered so they do not all open SQLite at the same second.
 `db.connect()` waits up to 30s on lock (`busy_timeout`) before failing.

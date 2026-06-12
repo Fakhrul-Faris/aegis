@@ -30,6 +30,7 @@ aegis-backtest = "aegis.backtest.run:main"
 aegis-backtest-swing = "aegis.backtest.swing_run:main"
 aegis-portfolio = "aegis.portfolio.brain:main"
 aegis-doctor = "aegis.monitor.doctor:main"
+aegis-telegram-bot = "aegis.monitor.telegram_bot:main"
 aegis-m1-check = "aegis.monitor.m1_check:main"
 aegis-download = "aegis.data.download:main"
 

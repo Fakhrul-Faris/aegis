@@ -63,7 +63,7 @@ def _check_launchd() -> list[str]:
     except (FileNotFoundError, subprocess.SubprocessError):
         return ["launchctl unavailable (not macOS?)"]
     notes: list[str] = []
-    for label in ("com.aegis.ingest", "com.aegis.scanner", "com.aegis.portfolio"):
+    for label in ("com.aegis.ingest", "com.aegis.scanner", "com.aegis.portfolio", "com.aegis.telegrambot"):
         if label in out:
             line = next(l for l in out.splitlines() if label in l)
             parts = line.split()
@@ -124,8 +124,8 @@ def _paper_status(conn: sqlite3.Connection) -> str:
     return f"paper equity ${equity:,.2f} | open {open_n} | taken signals {signals}"
 
 
-async def run_doctor(cfg_path: str) -> int:
-    cfg = load_config(cfg_path)
+async def format_doctor_report(cfg, *, check_kraken: bool = True) -> tuple[str, bool]:
+    """Text report and True when no critical issues."""
     issues: list[str] = []
     warnings: list[str] = []
 
@@ -135,28 +135,47 @@ async def run_doctor(cfg_path: str) -> int:
     warnings.extend(db_warnings)
     warnings.extend(_check_launchd())
     warnings.extend(_check_fly())
-    issues.extend(await _check_kraken())
+    if check_kraken:
+        issues.extend(await _check_kraken())
 
-    print("Aegis doctor")
-    print(f"  mode:     {cfg.mode}")
-    print(f"  sqlite:   {cfg.sqlite_path}")
+    lines = [
+        f"mode: {cfg.mode}",
+        f"sqlite: {cfg.sqlite_path}",
+    ]
     if conn:
-        print(f"  status:   {_paper_status(conn)}")
+        lines.append(f"status: {_paper_status(conn)}")
         conn.close()
 
     if warnings:
-        print("\nWarnings:")
+        lines.append("")
+        lines.append("Warnings:")
         for w in warnings:
-            print(f"  - {w}")
+            lines.append(f"  - {w}")
 
     if issues:
-        print("\nIssues (fix before relying on the stack):")
+        lines.append("")
+        lines.append("Issues:")
         for i in issues:
-            print(f"  - {i}")
-        return 1
+            lines.append(f"  - {i}")
+        return "\n".join(lines), False
 
-    print("\nAll critical checks passed.")
-    return 0
+    lines.append("")
+    lines.append("All critical checks passed.")
+    return "\n".join(lines), True
+
+
+async def run_doctor(cfg_path: str) -> int:
+    cfg = load_config(cfg_path)
+    text, ok = await format_doctor_report(cfg, check_kraken=True)
+    print("Aegis doctor")
+    for line in text.splitlines():
+        if line.startswith("  "):
+            print(line)
+        elif line == "":
+            print()
+        else:
+            print(f"  {line}")
+    return 0 if ok else 1
 
 
 def main() -> None:

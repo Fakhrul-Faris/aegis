@@ -9,7 +9,7 @@ AGENTS_DIR="$HOME/Library/LaunchAgents"
 
 mkdir -p "$AGENTS_DIR" "$REPO/logs"
 
-for name in ingest scanner portfolio kpi; do
+for name in ingest scanner portfolio kpi telegrambot; do
     label="com.aegis.$name"
     plist="$AGENTS_DIR/$label.plist"
     sed -e "s|__REPO__|$REPO|g" -e "s|__UV__|$UV|g" \
