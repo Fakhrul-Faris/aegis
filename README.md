@@ -63,5 +63,20 @@ tests/
 
 ## Status
 
-Phase 0 (foundations) in progress. Current milestone: M0 → M1
-(data layer live + scanner logging). Mode: `paper`.
+Phase 2 complete; Phase 3 paper trading in progress. Milestones:
+
+- **M0, M2:** passed
+- **M3 (Strategy B cointegration):** failed — Strategy A is the primary path
+- **M4:** 20+ testnet spreads + leg-2 drill done; **7-day soak running on Fly** (→ Jun 18)
+- **M1 gate:** ~Jun 13 — run `uv run aegis-m1-check` (do not restart Fly collector before then)
+
+Mode: `paper`. Ops:
+
+```bash
+uv run aegis-doctor              # health check
+uv run aegis-portfolio --loop 14400
+./deploy/install-launchd.sh      # ingest + scanner + portfolio
+./deploy/sync-collector-db.sh    # pull Fly DB for local paper
+```
+
+Runbook: `deploy/ops.md`

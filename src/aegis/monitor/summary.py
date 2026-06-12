@@ -61,6 +61,16 @@ def build_summary(conn: sqlite3.Connection, now_ms: int | None = None) -> str:
     page_size = conn.execute("PRAGMA page_size").fetchone()[0]
     db_mb = page_count * page_size / 1_048_576
 
+    open_positions = len(db.open_paper_positions(conn))
+    equity = db.latest_paper_equity(conn)
+    taken_signals = conn.execute(
+        "SELECT COUNT(*) FROM signals WHERE strategy='A' AND taken=1"
+    ).fetchone()[0]
+    paper_line = (
+        f"Paper: equity ${equity:,.2f} | open {open_positions} | "
+        f"taken signals {taken_signals}"
+    )
+
     stamp = datetime.fromtimestamp(now / 1000, tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
     warning = "" if snapshots_24h else "\nWARNING: zero snapshots in 24h - scanner down?"
     return (
@@ -70,7 +80,8 @@ def build_summary(conn: sqlite3.Connection, now_ms: int | None = None) -> str:
         f"Flags (24h): {flags_24h}\n"
         f"Flags (all time): {flags_total}\n"
         f"Candle series: {len(series)} | unfilled gaps: {total_gaps}\n"
-        f"DB size: {db_mb:.1f} MB"
+        f"DB size: {db_mb:.1f} MB\n"
+        f"{paper_line}"
         f"{warning}"
     )
 

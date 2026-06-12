@@ -9,14 +9,14 @@ AGENTS_DIR="$HOME/Library/LaunchAgents"
 
 mkdir -p "$AGENTS_DIR" "$REPO/logs"
 
-for name in ingest scanner; do
+for name in ingest scanner portfolio; do
     label="com.aegis.$name"
     plist="$AGENTS_DIR/$label.plist"
     sed -e "s|__REPO__|$REPO|g" -e "s|__UV__|$UV|g" \
         "$REPO/deploy/launchd/$label.plist.template" > "$plist"
     launchctl unload "$plist" 2>/dev/null || true
     launchctl load "$plist"
-    echo "loaded $label (hourly, logs in $REPO/logs/)"
+    echo "loaded $label (logs in $REPO/logs/)"
 done
 
 echo

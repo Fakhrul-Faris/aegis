@@ -6,10 +6,11 @@
 ./deploy/install-launchd.sh
 ```
 
-Installs two hourly launchd agents that also fire on boot/login:
+Installs three launchd agents that also fire on boot/login:
 
 - `com.aegis.ingest` - candle ingestion (Hyperliquid top-50 + Kraken majors)
 - `com.aegis.scanner` - CoinGecko volume anomaly scanner
+- `com.aegis.portfolio` - Strategy A paper cycle every 4h (`mode=paper`)
 
 Both alert Telegram on crash. Check health:
 
@@ -21,6 +22,9 @@ tail -f logs/aegis.jsonl            # structured event log
 The M1 gate (Tasks & Milestones) starts counting from the first uninterrupted
 72h of collection. Persistent unfilled gaps or scanner silence are
 weekly-KPI items, not annoyances to ignore.
+
+See `deploy/ops.md` for the full runbook (`aegis-doctor`, M1 check, soak,
+config freeze).
 
 ## Linux VPS (later, equity > RM2,000)
 

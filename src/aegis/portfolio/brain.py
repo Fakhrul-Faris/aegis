@@ -19,6 +19,7 @@ from aegis.config import load_config
 from aegis.data import db
 from aegis.execution.fees import verify_fees_at_startup
 from aegis.log import setup_logging
+from aegis.monitor.config_freeze import verify_or_freeze_paper_config
 from aegis.portfolio.paper_swing import run_paper_cycle
 from aegis.risk.breakers import BreakerState
 from aegis.risk.engine import RiskEngine
@@ -38,7 +39,9 @@ async def run_cycle(cfg, conn, risk: RiskEngine) -> None:
         logger.critical(msg)
 
 
-async def run_once(cfg_path: str = "config/config.yaml") -> None:
+async def run_once(
+    cfg_path: str = "config/config.yaml", *, reset_config_freeze: bool = False
+) -> None:
     cfg = load_config(cfg_path)
     setup_logging(cfg.monitoring.log_dir, cfg.monitoring.log_level)
     await verify_fees_at_startup(cfg)
@@ -46,6 +49,8 @@ async def run_once(cfg_path: str = "config/config.yaml") -> None:
     conn = db.connect(cfg.sqlite_path)
     risk = RiskEngine(cfg.risk, BreakerState())
     try:
+        if cfg.mode == "paper":
+            verify_or_freeze_paper_config(conn, cfg, reset=reset_config_freeze)
         await run_cycle(cfg, conn, risk)
     finally:
         conn.close()
@@ -60,14 +65,20 @@ def main() -> None:
         metavar="SECONDS",
         help="run continuously (4h strategy → default 14400s poll)",
     )
+    parser.add_argument(
+        "--reset-config-freeze",
+        action="store_true",
+        help="reset paper config hash baseline (starts new 8-week clock)",
+    )
     args = parser.parse_args()
 
     if args.loop:
         while True:
-            asyncio.run(run_once(args.config))
+            asyncio.run(run_once(args.config, reset_config_freeze=args.reset_config_freeze))
+            args.reset_config_freeze = False
             time.sleep(args.loop)
     else:
-        asyncio.run(run_once(args.config))
+        asyncio.run(run_once(args.config, reset_config_freeze=args.reset_config_freeze))
 
 
 if __name__ == "__main__":

@@ -27,6 +27,8 @@ aegis-testnet-soak = "aegis.execution.testnet_soak:main"
 aegis-backtest = "aegis.backtest.run:main"
 aegis-backtest-swing = "aegis.backtest.swing_run:main"
 aegis-portfolio = "aegis.portfolio.brain:main"
+aegis-doctor = "aegis.monitor.doctor:main"
+aegis-m1-check = "aegis.monitor.m1_check:main"
 aegis-download = "aegis.data.download:main"
 
 [dependency-groups]

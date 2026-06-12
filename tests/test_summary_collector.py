@@ -45,6 +45,7 @@ def test_summary_reports_counts(tmp_path):
     assert "Snapshots (24h): 1" in text
     assert "price_up_5: 1" in text
     assert "Flags (all time): 1" in text
+    assert "Paper: equity $1,000.00" in text
     assert "WARNING" not in text
 
 

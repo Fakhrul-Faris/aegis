@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from enum import StrEnum
 
+from dataclasses import dataclass
+
 import numpy as np
 
 from aegis.config import RegimeConfig
@@ -119,6 +121,42 @@ def detect_regime(
     if sideways:
         return Regime.SIDEWAYS
     return Regime.SIDEWAYS
+
+
+@dataclass(frozen=True)
+class RegimeSnapshot:
+    regime: Regime
+    adx: float | None
+    ema_fast: float | None
+    ema_slow: float | None
+    bb_width: float | None
+
+
+def regime_snapshot(
+    high: np.ndarray,
+    low: np.ndarray,
+    close: np.ndarray,
+    cfg: RegimeConfig,
+    *,
+    bar: int | None = None,
+    ema_fast: np.ndarray | None = None,
+    ema_slow: np.ndarray | None = None,
+) -> RegimeSnapshot:
+    """Regime plus indicator values for ``regime_labels`` persistence."""
+    if bar is None:
+        bar = len(close) - 1
+    if ema_fast is None:
+        ema_fast = ema(close, 9)
+    if ema_slow is None:
+        ema_slow = ema(close, 21)
+    adx_arr = adx(high, low, close)
+    bb_arr = bollinger_width(close)
+    adx_val = float(adx_arr[bar]) if bar < len(adx_arr) and not np.isnan(adx_arr[bar]) else None
+    bb_val = float(bb_arr[bar]) if bar < len(bb_arr) and not np.isnan(bb_arr[bar]) else None
+    ef = float(ema_fast[bar]) if not np.isnan(ema_fast[bar]) else None
+    es = float(ema_slow[bar]) if not np.isnan(ema_slow[bar]) else None
+    regime = detect_regime(high, low, close, cfg, ema_fast=ema_fast, ema_slow=ema_slow)
+    return RegimeSnapshot(regime=regime, adx=adx_val, ema_fast=ef, ema_slow=es, bb_width=bb_val)
 
 
 def strategy_a_active(regime: Regime) -> bool:

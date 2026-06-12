@@ -720,3 +720,33 @@ def signal_exists_for_bar(
         (symbol, bar_open_ms),
     ).fetchone()
     return row is not None
+
+
+def upsert_regime_label(
+    conn: sqlite3.Connection,
+    *,
+    venue: str,
+    symbol: str,
+    timeframe: str,
+    open_time_ms: int,
+    regime: str,
+    adx: float | None,
+    ema_fast: float | None,
+    ema_slow: float | None,
+    bb_width: float | None,
+) -> None:
+    conn.execute(
+        """
+        INSERT INTO regime_labels
+            (venue, symbol, timeframe, open_time_ms, regime, adx, ema_fast, ema_slow, bb_width)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (venue, symbol, timeframe, open_time_ms) DO UPDATE SET
+            regime = excluded.regime,
+            adx = excluded.adx,
+            ema_fast = excluded.ema_fast,
+            ema_slow = excluded.ema_slow,
+            bb_width = excluded.bb_width
+        """,
+        (venue, symbol, timeframe, open_time_ms, regime, adx, ema_fast, ema_slow, bb_width),
+    )
+    conn.commit()

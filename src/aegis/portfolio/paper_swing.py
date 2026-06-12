@@ -22,7 +22,12 @@ from aegis.execution import build_market_data
 from aegis.execution.paper import PaperExecutor
 from aegis.risk.engine import RiskEngine
 from aegis.risk.sizing import concurrent_risk_allows, size_position
-from aegis.strategy.regime import detect_regime, strategy_a_active, strategy_b_size_factor
+from aegis.strategy.regime import (
+    detect_regime,
+    regime_snapshot,
+    strategy_a_active,
+    strategy_b_size_factor,
+)
 from aegis.strategy.swing import (
     SwingExit,
     SwingTier,
@@ -52,6 +57,44 @@ def _open_risk_r(conn) -> tuple[float, dict[str, float]]:
         risk_r = float(pos.context.get("risk_r", 0.5))
         by_symbol[pos.symbol] = by_symbol.get(pos.symbol, 0.0) + risk_r
     return sum(by_symbol.values()), by_symbol
+
+
+def _persist_regime_label(
+    conn,
+    cfg: AegisConfig,
+    candles,
+    base: str,
+) -> None:
+    if len(candles) < cfg.strategy_a.ema_slow + 2:
+        return
+
+    bar = len(candles) - 1
+    bar_open_ms = int(candles[bar].open_time.timestamp() * 1000)
+    highs = np.array([c.high for c in candles])
+    lows = np.array([c.low for c in candles])
+    closes = np.array([c.close for c in candles])
+    fast, slow, _ = precompute_indicators(closes, cfg.strategy_a)
+    snap = regime_snapshot(
+        highs,
+        lows,
+        closes,
+        cfg.regime,
+        bar=bar,
+        ema_fast=fast,
+        ema_slow=slow,
+    )
+    db.upsert_regime_label(
+        conn,
+        venue=Venue.KRAKEN.value,
+        symbol=base,
+        timeframe=cfg.strategy_a.signal_timeframe,
+        open_time_ms=bar_open_ms,
+        regime=snap.regime.value,
+        adx=snap.adx,
+        ema_fast=snap.ema_fast,
+        ema_slow=snap.ema_slow,
+        bb_width=snap.bb_width,
+    )
 
 
 def _insert_signal(
@@ -89,6 +132,8 @@ async def _check_exits(
     candles = await md.fetch_candles(kraken_symbol, cfg.strategy_a.signal_timeframe, limit=250)
     if len(candles) < cfg.strategy_a.ema_slow + 2:
         return
+
+    _persist_regime_label(conn, cfg, candles, base)
 
     closes = np.array([c.close for c in candles])
     fast, slow, _ = precompute_indicators(closes, cfg.strategy_a)
@@ -165,6 +210,8 @@ async def _try_entry(
     candles = await md.fetch_candles(kraken_symbol, cfg.strategy_a.signal_timeframe, limit=250)
     if len(candles) < 210:
         return
+
+    _persist_regime_label(conn, cfg, candles, base)
 
     bar = len(candles) - 1
     bar_open_ms = int(candles[bar].open_time.timestamp() * 1000)
