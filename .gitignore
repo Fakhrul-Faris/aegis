@@ -24,6 +24,7 @@ soak_state.json
 *.sqlite3
 *.sqlite-shm
 *.sqlite-wal
+*.sqlite.bak.*
 *.db
 
 # Research scratch (notebooks checked in deliberately only)
