@@ -261,9 +261,20 @@ async def soak_main(
                 last_summary_day = day_key
 
             if _soak_elapsed_days(state) >= SOAK_DURATION_DAYS:
+                passed = state.anomalies == 0 and state.spreads_fail == 0
                 await send_soak_summary(cfg, state, final=True)
+                from aegis.monitor.milestones import notify_soak_verdict
+
+                await notify_soak_verdict(
+                    cfg,
+                    passed=passed,
+                    elapsed_days=_soak_elapsed_days(state),
+                    spreads_ok=state.spreads_ok,
+                    spreads_fail=state.spreads_fail,
+                    anomalies=state.anomalies,
+                )
                 _log_event(conn, "soak_complete", asdict(state))
-                if state.anomalies > 0 or state.spreads_fail > 0:
+                if not passed:
                     exit_code = 1
                 break
 

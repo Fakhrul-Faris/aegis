@@ -23,10 +23,12 @@ def _collection_span_hours(conn) -> float | None:
     return (row[1] - row[0]) / HOUR_MS
 
 
-async def run_m1_check(cfg_path: str, *, skip_reconcile: bool) -> int:
+async def run_m1_check(cfg_path: str, *, skip_reconcile: bool, notify: bool = False) -> int:
     cfg = load_config(cfg_path)
     conn = db.connect(cfg.sqlite_path)
     failures: list[str] = []
+    span_h: float | None = None
+    flags = 0
 
     try:
         span_h = _collection_span_hours(conn)
@@ -73,6 +75,10 @@ async def run_m1_check(cfg_path: str, *, skip_reconcile: bool) -> int:
         return 1
 
     print("\nM1 GATE: PASS (mark checklist in Tasks & Milestones)")
+    if notify and span_h is not None:
+        from aegis.monitor.milestones import notify_m1_passed
+
+        await notify_m1_passed(cfg, span_hours=span_h, flag_count=flags)
     return 0
 
 
@@ -80,10 +86,15 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="M1 milestone gate check")
     parser.add_argument("--config", default="config/config.yaml")
     parser.add_argument("--skip-reconcile", action="store_true")
+    parser.add_argument("--notify", action="store_true", help="Telegram on pass")
     args = parser.parse_args()
     cfg = load_config(args.config)
     setup_logging(cfg.monitoring.log_dir, cfg.monitoring.log_level)
-    sys.exit(asyncio.run(run_m1_check(args.config, skip_reconcile=args.skip_reconcile)))
+    sys.exit(
+        asyncio.run(
+            run_m1_check(args.config, skip_reconcile=args.skip_reconcile, notify=args.notify)
+        )
+    )
 
 
 if __name__ == "__main__":
