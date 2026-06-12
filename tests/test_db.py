@@ -25,6 +25,8 @@ def _candle(open_ms: int, close: float = 100.0) -> Candle:
 
 def test_schema_creates_all_tables(tmp_path):
     conn = db.connect(tmp_path / "t.sqlite")
+    busy = conn.execute("PRAGMA busy_timeout").fetchone()[0]
+    assert busy == 30_000
     tables = {
         row[0]
         for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()

@@ -196,9 +196,12 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
 )
 
 
-def connect(path: str | Path) -> sqlite3.Connection:
+def connect(path: str | Path, *, busy_timeout_ms: int = 30_000) -> sqlite3.Connection:
     """Open (creating if needed) the database with WAL mode and schema applied."""
-    conn = sqlite3.connect(path)
+    # busy_timeout lets concurrent launchd agents (ingest/scanner/portfolio) wait
+    # for the writer instead of failing immediately with "database is locked".
+    conn = sqlite3.connect(path, timeout=busy_timeout_ms / 1000.0)
+    conn.execute(f"PRAGMA busy_timeout={busy_timeout_ms}")
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys=ON")

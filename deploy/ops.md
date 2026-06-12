@@ -19,6 +19,8 @@ uv run aegis-doctor    # fix any issues before trusting the stack
 | `uv run aegis-doctor` | Daily or after changes | exit 0, no critical issues |
 | `launchctl list \| grep com.aegis` | Daily | second column `0` for each agent |
 | `uv run aegis-summary` | Daily (or read Telegram) | snapshots > 0, flags accumulating |
+| `uv run aegis-kpi-report --print-only` | Sunday | fills Section 5 row |
+| `uv run aegis-breaker-drill` | Once (M4 gate) | exit 0 |
 | `fly status -a aegis-collector` | Weekly | machine started |
 | `fly logs -a aegis-testnet-soak` | During soak (→ Jun 18) | no crash loops |
 
@@ -26,9 +28,13 @@ uv run aegis-doctor    # fix any issues before trusting the stack
 
 | Label | Interval | Role |
 |-------|----------|------|
-| `com.aegis.ingest` | 1h | Candle backfill + gap repair |
-| `com.aegis.scanner` | 1h | CoinGecko anomaly flags |
-| `com.aegis.portfolio` | 4h | Strategy A paper cycle |
+| `com.aegis.ingest` | hourly :02 | Candle backfill + gap repair |
+| `com.aegis.scanner` | hourly :08 | CoinGecko anomaly flags |
+| `com.aegis.portfolio` | every 4h | Strategy A paper cycle |
+| `com.aegis.kpi` | Sun 17:00 UTC | Weekly KPI → Telegram + Section 5 |
+
+Agents are staggered so they do not all open SQLite at the same second.
+`db.connect()` waits up to 30s on lock (`busy_timeout`) before failing.
 
 Install/reload: `./deploy/install-launchd.sh`
 
@@ -92,11 +98,26 @@ quotes; no HL testnet needed for paper.
 
 | Symptom | Action |
 |---------|--------|
+| `database is locked` Telegram | Usually concurrent writers on local SQLite — see below |
 | Scanner silent 24h | Check `com.aegis.scanner`, CoinGecko rate limits, Telegram |
 | `aegis-doctor` flags empty candles | Run ingest or sync-collector-db |
 | Paper config changed error | Intentional → `--reset-config-freeze`; else revert config |
 | Breaker / kill switch in logs | Investigate equity path; do not override without memo |
 | Soak crash | `fly logs -a aegis-testnet-soak`; do not restart wallet blindly |
+
+### SQLite lock crashes (local macOS)
+
+Three launchd agents share `aegis.sqlite`. If they start together or overlap
+with a manual `aegis-scan` / `sync-collector-db`, SQLite returns
+`OperationalError: database is locked` and Telegram fires
+`CRITICAL - aegis scanner crashed: ...`.
+
+**Never** copy/sync the DB while agents are running without
+`sync-collector-db.sh` (it stops agents first). After Jun 12 08:20 UTC a bad
+sync also caused `database disk image is malformed` — restored from backup.
+
+Mitigations now in place: 30s `busy_timeout`, ingest at :02, scanner at :08,
+portfolio every 4h without immediate RunAtLoad.
 
 ## Logs
 

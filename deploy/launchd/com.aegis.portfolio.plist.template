@@ -10,13 +10,13 @@
         <string>__UV__</string>
         <string>run</string>
         <string>aegis-portfolio</string>
-        <string>--loop</string>
-        <string>14400</string>
     </array>
     <key>WorkingDirectory</key>
     <string>__REPO__</string>
+    <key>StartInterval</key>
+    <integer>14400</integer>
     <key>RunAtLoad</key>
-    <true/>
+    <false/>
     <key>StandardOutPath</key>
     <string>__REPO__/logs/launchd-portfolio.out</string>
     <key>StandardErrorPath</key>
