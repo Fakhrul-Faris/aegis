@@ -12,9 +12,11 @@ All timestamps are integer epoch milliseconds, UTC.
 from __future__ import annotations
 
 import itertools
+import json
 import sqlite3
 import time
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -593,3 +595,128 @@ def count_fills(conn: sqlite3.Connection, venue: str | None = None) -> int:
     if venue is None:
         return conn.execute("SELECT COUNT(*) FROM fills").fetchone()[0]
     return conn.execute("SELECT COUNT(*) FROM fills WHERE venue = ?", (venue,)).fetchone()[0]
+
+
+# --- Paper positions -------------------------------------------------------
+
+
+@dataclass
+class PaperPositionRow:
+    id: int
+    symbol: str
+    quantity: float
+    entry_price: float
+    risk_amount_usd: float
+    opened_ts_ms: int
+    context: dict
+
+
+def open_paper_positions(
+    conn: sqlite3.Connection,
+    *,
+    strategy: str = "A",
+    venue: str = "kraken",
+) -> list[PaperPositionRow]:
+    rows = conn.execute(
+        """
+        SELECT id, symbol, quantity, entry_price, risk_amount_usd, opened_ts_ms, context_json
+        FROM positions
+        WHERE strategy = ? AND venue = ? AND closed_ts_ms IS NULL
+        """,
+        (strategy, venue),
+    ).fetchall()
+    return [
+        PaperPositionRow(
+            id=row[0],
+            symbol=row[1],
+            quantity=row[2],
+            entry_price=row[3],
+            risk_amount_usd=row[4] or 0.0,
+            opened_ts_ms=row[5],
+            context=json.loads(row[6]) if row[6] else {},
+        )
+        for row in rows
+    ]
+
+
+def insert_paper_position(
+    conn: sqlite3.Connection,
+    *,
+    opened_ts_ms: int,
+    symbol: str,
+    quantity: float,
+    entry_price: float,
+    risk_amount_usd: float,
+    tier: str,
+    context: dict,
+) -> int:
+    cursor = conn.execute(
+        """
+        INSERT INTO positions
+            (opened_ts_ms, strategy, venue, symbol, side, quantity, entry_price,
+             risk_amount_usd, context_json)
+        VALUES (?, 'A', 'kraken', ?, 'long', ?, ?, ?, ?)
+        """,
+        (
+            opened_ts_ms,
+            symbol,
+            quantity,
+            entry_price,
+            risk_amount_usd,
+            json.dumps(context | {"tier": tier}),
+        ),
+    )
+    conn.commit()
+    return int(cursor.lastrowid)
+
+
+def close_paper_position(
+    conn: sqlite3.Connection,
+    position_id: int,
+    *,
+    closed_ts_ms: int,
+    exit_price: float,
+    realized_pnl: float,
+    r_multiple: float,
+    exit_reason: str,
+) -> None:
+    row = conn.execute("SELECT context_json FROM positions WHERE id = ?", (position_id,)).fetchone()
+    ctx = json.loads(row[0]) if row and row[0] else {}
+    ctx["exit_reason"] = exit_reason
+    conn.execute(
+        """
+        UPDATE positions
+        SET closed_ts_ms = ?, exit_price = ?, realized_pnl = ?, r_multiple = ?,
+            context_json = ?
+        WHERE id = ?
+        """,
+        (closed_ts_ms, exit_price, realized_pnl, r_multiple, json.dumps(ctx), position_id),
+    )
+    conn.commit()
+
+
+def latest_paper_equity(conn: sqlite3.Connection, default: float = 1000.0) -> float:
+    row = conn.execute(
+        """
+        SELECT equity_usd FROM equity_snapshots
+        WHERE venue = 'paper' ORDER BY ts_ms DESC LIMIT 1
+        """
+    ).fetchone()
+    return float(row[0]) if row else default
+
+
+def signal_exists_for_bar(
+    conn: sqlite3.Connection,
+    symbol: str,
+    bar_open_ms: int,
+) -> bool:
+    row = conn.execute(
+        """
+        SELECT 1 FROM signals
+        WHERE strategy = 'A' AND symbol = ?
+          AND json_extract(context_json, '$.bar_open_ms') = ?
+        LIMIT 1
+        """,
+        (symbol, bar_open_ms),
+    ).fetchone()
+    return row is not None
