@@ -20,7 +20,7 @@ uv run aegis-doctor    # fix any issues before trusting the stack
 | `launchctl list \| grep com.aegis` | Daily | second column `0` for each agent |
 | `uv run aegis-summary` | Daily (or read Telegram) | snapshots > 0, flags accumulating |
 | `uv run aegis-kpi-report --print-only` | Sunday | fills Section 5 row |
-| Telegram `/status`, `/paper`, `/health` | Anytime | read-only bot menu |
+| Telegram `/status`, `/progress`, `/paper` | Anytime | read-only bot menu |
 | `uv run aegis-breaker-drill` | Once (M4 gate) | exit 0 |
 | `fly status -a aegis-collector` | Weekly | machine started |
 | `fly logs -a aegis-testnet-soak` | During soak (→ Jun 18) | no crash loops |

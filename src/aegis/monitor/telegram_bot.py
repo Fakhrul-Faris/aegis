@@ -20,6 +20,7 @@ from aegis.log import setup_logging
 from aegis.monitor.config_freeze import FREEZE_SCOPE, config_hash
 from aegis.monitor.doctor import format_doctor_report
 from aegis.monitor.kpi import build_weekly_kpi, format_weekly_kpi
+from aegis.monitor.progress import build_progress_report
 from aegis.monitor.summary import build_summary
 from aegis.monitor.telegram import TelegramNotifier, notifier_from_config
 
@@ -33,6 +34,7 @@ BOT_COMMANDS = [
     {"command": "paper", "description": "Paper equity and positions"},
     {"command": "scanner", "description": "Volume anomaly flags"},
     {"command": "health", "description": "Stack health check"},
+    {"command": "progress", "description": "Milestones and project status"},
     {"command": "kpi", "description": "Weekly KPI snapshot"},
     {"command": "help", "description": "Command list"},
 ]
@@ -40,19 +42,21 @@ BOT_COMMANDS = [
 MENU_KEYBOARD = {
     "inline_keyboard": [
         [
+            {"text": "Progress", "callback_data": "progress"},
             {"text": "Paper", "callback_data": "paper"},
-            {"text": "Scanner", "callback_data": "scanner"},
         ],
         [
+            {"text": "Scanner", "callback_data": "scanner"},
             {"text": "Health", "callback_data": "health"},
-            {"text": "KPI", "callback_data": "kpi"},
         ],
+        [{"text": "KPI", "callback_data": "kpi"}],
     ]
 }
 
 HELP_TEXT = (
     "Aegis bot — read-only status\n\n"
     "/status — heartbeat + menu buttons\n"
+    "/progress — milestones and where we are\n"
     "/paper — paper equity, positions, config freeze\n"
     "/scanner — anomaly flags\n"
     "/health — doctor checks (no live Kraken ping)\n"
@@ -218,6 +222,8 @@ async def dispatch_command(cfg: AegisConfig, command: str) -> tuple[str, dict | 
             return format_weekly_kpi(build_weekly_kpi(conn)), None
         finally:
             conn.close()
+    if command == "progress":
+        return build_progress_report(cfg), None
     return f"Unknown command /{command}. Try /help.", None
 
 

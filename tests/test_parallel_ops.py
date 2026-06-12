@@ -31,7 +31,8 @@ def test_kpi_with_closed_trades(tmp_path):
         INSERT INTO positions
             (opened_ts_ms, closed_ts_ms, strategy, venue, symbol, side, quantity,
              entry_price, exit_price, realized_pnl, r_multiple, context_json)
-        VALUES (?, ?, 'A', 'kraken', 'BTC', 'long', 1, 100, 106, 6, 1.2, '{}')
+        VALUES (?, ?, 'A', 'kraken', 'BTC', 'long', 1, 100, 106, 6, 1.2,
+                '{"tier":"aggressive","scanner":{"variant":"price_flat"}}')
         """,
         (now - 3_600_000, now - 1000),
     )
@@ -39,6 +40,31 @@ def test_kpi_with_closed_trades(tmp_path):
     kpi = build_weekly_kpi(conn, now_ms=now)
     assert kpi.trades_cum == 1
     assert kpi.expectancy_r == pytest.approx(1.2)
+    text = format_weekly_kpi(kpi)
+    assert "By tier (closed trades):" in text
+    assert "aggressive: n=1" in text
+    assert "price_flat: n=1" in text
+    assert "vs baseline" in text
+
+
+def test_kpi_signal_log_by_tier(tmp_path):
+    conn = db.connect(tmp_path / "t.sqlite")
+    now = 1_700_000_000_000
+    conn.execute(
+        """
+        INSERT INTO signals
+            (ts_ms, strategy, venue, symbol, direction, tier, taken, skip_reason, context_json)
+        VALUES
+            (?, 'A', 'kraken', 'BTC', 'long', 'passive', 0, 'passive_baseline_only', '{}'),
+            (?, 'A', 'kraken', 'ETH', 'long', 'aggressive', 1, NULL, '{}')
+        """,
+        (now, now),
+    )
+    conn.commit()
+    kpi = build_weekly_kpi(conn, now_ms=now)
+    text = format_weekly_kpi(kpi)
+    assert "passive 0/1 taken" in text
+    assert "aggressive 1/1 taken" in text
 
 
 def test_kpi_due_once_per_week():
