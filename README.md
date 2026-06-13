@@ -12,9 +12,11 @@ Both governed by a risk-based sizing engine (0.5-1.0% of equity per trade),
 a per-asset regime detector, correlation guards, and Monte Carlo-calibrated
 circuit breakers.
 
-The full specification lives in two private documents (not in this repo):
-`Aegis Concept.md` v3.0 (architecture and math) and
-`Aegis Tasks & Milestones.md` (task list, gates, KPI log).
+The full specification lives in the repo root:
+
+- [`Aegis Concept.md`](Aegis%20Concept.md) v3.0 — architecture and math
+- [`Aegis Tasks & Milestones.md`](Aegis%20Tasks%20%26%20Milestones.md) — task list, gates, KPI log
+- [`studynote.md`](studynote.md) — flashcards and cheat sheet (non-finance readers)
 
 ## Setup
 
