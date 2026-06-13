@@ -42,10 +42,11 @@ def test_summary_reports_counts(tmp_path):
     )
 
     text = build_summary(conn, now_ms=NOW)
-    assert "Snapshots (24h): 1" in text
+    assert "TODAY'S MONEY" in text
+    assert "PATH TO LIVE" in text
     assert "price_up_5: 1" in text
-    assert "Flags (all time): 1" in text
-    assert "Paper: equity $1,000.00" in text
+    assert "Flags:" in text and "all time: 1" in text
+    assert "Equity now:     $1,000.00" in text
     assert "WARNING" not in text
 
 
@@ -61,6 +62,24 @@ def test_seconds_until_next_tick():
     assert seconds_until_next_tick(on_the_hour) == 3600 + 90
     # 10:59:00 -> 60s to the hour + 90 offset
     assert seconds_until_next_tick(on_the_hour + 3540) == 60 + 90
+
+
+def test_command_bot_enabled_requires_credentials():
+    from dataclasses import replace
+
+    from aegis.config import load_config
+    from aegis.monitor.telegram_bot import command_bot_enabled
+
+    cfg = replace(load_config(env_file=None), monitoring=replace(
+        load_config(env_file=None).monitoring, telegram_enabled=True
+    ))
+    assert not command_bot_enabled(cfg)
+
+    cfg2 = replace(
+        cfg,
+        secrets=replace(cfg.secrets, telegram_bot_token="tok", telegram_chat_id="123"),
+    )
+    assert command_bot_enabled(cfg2)
 
 
 def test_summary_due_once_per_day():

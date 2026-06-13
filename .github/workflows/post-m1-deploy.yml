@@ -1,0 +1,48 @@
+# One-shot deploy after M1 gate (Jun 13 2026). Runs even if your Mac is off.
+# Requires GitHub repo secret: FLY_API_TOKEN (fly auth token)
+#
+# Also set on Fly for in-collector auto-deploy:
+#   fly secrets set FLY_API_TOKEN=$(fly auth token) -a aegis-collector
+
+name: Post-M1 collector deploy
+
+on:
+  schedule:
+    # Jun 13–15 2026 at 17:30 UTC (30m after M1 gate + buffer)
+    - cron: "30 17 13 6 *"
+    - cron: "30 17 14 6 *"
+    - cron: "30 17 15 6 *"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: M1 gate check on Fly volume
+        id: m1
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          flyctl ssh console -a aegis-collector -C \
+            "aegis-m1-check --skip-reconcile --config config/config.yaml"
+
+      - name: Skip if deploy marker exists
+        id: marker
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          if flyctl ssh console -a aegis-collector -C "test -f /data/post_m1_deploy.done.json"; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy collector (Telegram /commands on Fly)
+        if: steps.marker.outputs.skip != 'true'
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: flyctl deploy -a aegis-collector --remote-only --ha=false

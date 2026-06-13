@@ -118,6 +118,16 @@ def _insert_signal(
     conn.commit()
 
 
+async def _hourly_returns(md: MarketData, kraken_symbol: str, min_obs: int) -> np.ndarray:
+    candles = await md.fetch_candles(kraken_symbol, "1h", limit=min_obs + 1)
+    if len(candles) < min_obs:
+        return np.array([])
+    closes = np.array([c.close for c in candles], dtype=float)
+    if np.any(closes[:-1] <= 0):
+        return np.array([])
+    return np.diff(closes) / closes[:-1]
+
+
 async def _check_exits(
     cfg: AegisConfig,
     conn,
@@ -154,7 +164,7 @@ async def _check_exits(
             slippage_pct=cfg.risk.slippage_gate_pct,
             kraken_pair=kraken_symbol,
         )
-        await paper.place_order(
+        order_id = await paper.place_order(
             OrderRequest(
                 venue=Venue.KRAKEN,
                 symbol=base,
@@ -163,16 +173,21 @@ async def _check_exits(
                 quantity=pos.quantity,
             )
         )
-
-        gross_pnl = (current - pos.entry_price) * pos.quantity
+        fills = await paper.fetch_fills(order_id)
+        exit_fill = fills[0]
+        exit_price = exit_fill.price
+        exit_fee = exit_fill.fee
+        entry_fee = float(pos.context.get("entry_fee", 0.0))
+        gross_pnl = (exit_price - pos.entry_price) * pos.quantity
+        net_pnl = gross_pnl - entry_fee - exit_fee
         risk = pos.risk_amount_usd or 1.0
-        r_mult = gross_pnl / risk
+        r_mult = net_pnl / risk
         db.close_paper_position(
             conn,
             pos.id,
             closed_ts_ms=int(time.time() * 1000),
-            exit_price=current,
-            realized_pnl=gross_pnl,
+            exit_price=exit_price,
+            realized_pnl=net_pnl,
             r_multiple=r_mult,
             exit_reason=exit_reason.value,
         )
@@ -306,13 +321,20 @@ async def _try_entry(
         )
         return
 
+    returns_by_symbol: dict[str, np.ndarray] = {}
+    for sym in {base, *open_by_symbol}:
+        pair = next(s for s in cfg.data.kraken_symbols if s.startswith(f"{sym}/"))
+        returns_by_symbol[sym] = await _hourly_returns(
+            md, pair, cfg.risk.correlation_min_observations
+        )
+
     approval = risk.approve_trade(
         equity=equity,
         symbol=base,
         new_risk_r=sizing.risk_r,
         open_risk_r=open_total,
         open_risk_by_symbol=open_by_symbol,
-        returns_by_symbol={base: np.array([])},
+        returns_by_symbol=returns_by_symbol,
         side=Side.BUY,
         limit_price=ask,
         best_bid=bid,
@@ -337,7 +359,7 @@ async def _try_entry(
         slippage_pct=cfg.risk.slippage_gate_pct,
         kraken_pair=kraken_symbol,
     )
-    await paper.place_order(
+    order_id = await paper.place_order(
         OrderRequest(
             venue=Venue.KRAKEN,
             symbol=base,
@@ -347,14 +369,17 @@ async def _try_entry(
             client_order_id=f"a-{base}-{bar_open_ms}",
         )
     )
+    fills = await paper.fetch_fills(order_id)
+    fill = fills[0]
 
     ctx["risk_r"] = sizing.risk_r
+    ctx["entry_fee"] = fill.fee
     db.insert_paper_position(
         conn,
         opened_ts_ms=int(time.time() * 1000),
         symbol=base,
         quantity=quantity,
-        entry_price=ask,
+        entry_price=fill.price,
         risk_amount_usd=sizing.risk_amount,
         tier=entry.tier.value,
         context=ctx,
@@ -389,10 +414,12 @@ def _paper_equity(conn, marks: dict[str, float]) -> float:
         """
     ).fetchone()[0]
     unrealized = 0.0
+    open_fees = 0.0
     for pos in db.open_paper_positions(conn):
         mark = marks.get(pos.symbol, pos.entry_price)
         unrealized += (mark - pos.entry_price) * pos.quantity
-    return PAPER_STARTING_EQUITY_USD + float(realized or 0) + unrealized
+        open_fees += float(pos.context.get("entry_fee", 0.0))
+    return PAPER_STARTING_EQUITY_USD + float(realized or 0) + unrealized - open_fees
 
 
 async def run_paper_cycle(cfg: AegisConfig, conn, risk: RiskEngine) -> None:
@@ -411,6 +438,11 @@ async def run_paper_cycle(cfg: AegisConfig, conn, risk: RiskEngine) -> None:
         for kraken_symbol in cfg.data.kraken_symbols:
             base = kraken_symbol.split("/")[0]
             await _check_exits(cfg, conn, md, kraken_symbol, base)
+
+        equity = _paper_equity(conn, marks)
+
+        for kraken_symbol in cfg.data.kraken_symbols:
+            base = kraken_symbol.split("/")[0]
             await _try_entry(cfg, conn, md, risk, kraken_symbol, base, equity)
             try:
                 _, ask = await md.fetch_top_of_book(kraken_symbol)

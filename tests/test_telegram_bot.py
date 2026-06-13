@@ -49,7 +49,8 @@ def test_build_paper_report(tmp_path):
     cfg = _cfg(sqlite_path=str(tmp_path / "t.sqlite"), mode="paper")
     db.connect(tmp_path / "t.sqlite").close()
     report = build_paper_report(cfg)
-    assert "Equity: $1,000.00" in report
+    assert "TODAY'S MONEY" in report
+    assert "Equity now:" in report
     assert "Config freeze" in report
 
 

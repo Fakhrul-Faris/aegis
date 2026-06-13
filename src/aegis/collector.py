@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import logging
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 
 from aegis.config import AegisConfig, load_config
 from aegis.log import setup_logging
@@ -21,6 +23,27 @@ from aegis.log import setup_logging
 logger = logging.getLogger(__name__)
 
 _OFFSET_SECONDS = 90  # run at :01:30 so venue/CoinGecko hourly data is settled
+_STATE_FILE = "collector_state.json"
+
+
+def _state_path(cfg: AegisConfig) -> Path:
+    return Path(cfg.sqlite_path).parent / _STATE_FILE
+
+
+def _read_last_summary_day(cfg: AegisConfig) -> str | None:
+    path = _state_path(cfg)
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text()).get("last_summary_day")
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def _write_last_summary_day(cfg: AegisConfig, day_key: str) -> None:
+    path = _state_path(cfg)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"last_summary_day": day_key}))
 
 
 def seconds_until_next_tick(now_s: float, offset_s: int = _OFFSET_SECONDS) -> float:
@@ -56,30 +79,66 @@ async def run_cycle(cfg: AegisConfig) -> None:
     await _guarded(cfg, "ingest", ingest_once(cfg))
 
 
+async def _telegram_bot_sidecar(cfg: AegisConfig) -> None:
+    """Long-poll command bot — runs on Fly alongside collector (no Mac required)."""
+    from aegis.monitor.telegram import notify_crash
+    from aegis.monitor.telegram_bot import command_bot_enabled, run_bot
+
+    if not command_bot_enabled(cfg):
+        return
+    try:
+        await run_bot(cfg)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        logger.exception("telegram command bot crashed")
+        await notify_crash(cfg, "telegram-bot", exc)
+
+
 async def collector_main(cfg: AegisConfig, once: bool = False) -> None:
+    from aegis.monitor.post_m1_deploy import maybe_post_m1_deploy
     from aegis.monitor.summary import send_daily_summary
     from aegis.monitor.telegram import notifier_from_config
+    from aegis.monitor.telegram_bot import command_bot_enabled
 
     notifier = notifier_from_config(cfg)
-    await notifier.send("Aegis collector online - hourly scan+ingest active.")
+    startup = "Aegis collector online - hourly scan+ingest active."
+    if command_bot_enabled(cfg) and not once:
+        startup += " Telegram /commands active on this host."
+    await notifier.send(startup)
     await notifier.close()
 
-    last_summary_day: str | None = None
-    while True:
-        await run_cycle(cfg)
+    bot_task: asyncio.Task | None = None
+    if command_bot_enabled(cfg) and not once:
+        bot_task = asyncio.create_task(_telegram_bot_sidecar(cfg), name="telegram-bot")
+        logger.info("telegram command bot started alongside collector")
 
-        due, day_key = summary_due(
-            time.time(), cfg.monitoring.daily_summary_hour_utc, last_summary_day
-        )
-        if due:
-            await _guarded(cfg, "summary", send_daily_summary(cfg))
-            last_summary_day = day_key
+    last_summary_day = _read_last_summary_day(cfg)
+    try:
+        while True:
+            await run_cycle(cfg)
+            await _guarded(cfg, "post-m1-deploy", maybe_post_m1_deploy(cfg))
 
-        if once:
-            return
-        delay = seconds_until_next_tick(time.time())
-        logger.info("collector sleeping", extra={"seconds": round(delay)})
-        await asyncio.sleep(delay)
+            due, day_key = summary_due(
+                time.time(), cfg.monitoring.daily_summary_hour_utc, last_summary_day
+            )
+            if due:
+                await _guarded(cfg, "summary", send_daily_summary(cfg))
+                last_summary_day = day_key
+                _write_last_summary_day(cfg, day_key)
+
+            if once:
+                return
+            delay = seconds_until_next_tick(time.time())
+            logger.info("collector sleeping", extra={"seconds": round(delay)})
+            await asyncio.sleep(delay)
+    finally:
+        if bot_task is not None:
+            bot_task.cancel()
+            try:
+                await bot_task
+            except asyncio.CancelledError:
+                pass
 
 
 def main() -> None:

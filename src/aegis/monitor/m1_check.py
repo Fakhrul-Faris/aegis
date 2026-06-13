@@ -14,6 +14,8 @@ from aegis.log import setup_logging
 
 HOUR_MS = 3_600_000
 REQUIRED_HOURS = 72
+MIN_HOURLY_COVERAGE = 0.90  # ≥90% of hours in the 72h window must have a scan batch
+MAX_GAP_HOURS = 3.0  # one missed hour + slack; restarts void the gate
 
 
 def _collection_span_hours(conn) -> float | None:
@@ -21,6 +23,34 @@ def _collection_span_hours(conn) -> float | None:
     if not row or row[0] is None:
         return None
     return (row[1] - row[0]) / HOUR_MS
+
+
+def _snapshot_continuity(
+    conn, *, window_hours: int = REQUIRED_HOURS, now_ms: int | None = None
+) -> tuple[bool, str]:
+    """Hourly scanner batches with bounded gaps — enforces uninterrupted collection."""
+    now_ms = now_ms if now_ms is not None else int(time.time() * 1000)
+    since_ms = now_ms - window_hours * HOUR_MS
+    rows = conn.execute(
+        "SELECT DISTINCT ts_ms FROM market_snapshots WHERE ts_ms >= ? ORDER BY ts_ms ASC",
+        (since_ms,),
+    ).fetchall()
+    if not rows:
+        return False, "no snapshots in last 72h"
+    batches = [r[0] for r in rows]
+    min_expected = int(window_hours * MIN_HOURLY_COVERAGE)
+    if len(batches) < min_expected:
+        return (
+            False,
+            f"hourly coverage {len(batches)}/{window_hours} batches "
+            f"(need ≥{min_expected})",
+        )
+    if len(batches) < 2:
+        return False, "need ≥2 hourly batches for gap check"
+    max_gap_h = max((batches[i + 1] - batches[i]) / HOUR_MS for i in range(len(batches) - 1))
+    if max_gap_h > MAX_GAP_HOURS:
+        return False, f"max gap {max_gap_h:.1f}h exceeds {MAX_GAP_HOURS}h limit"
+    return True, f"{len(batches)} hourly batches, max gap {max_gap_h:.1f}h"
 
 
 async def run_m1_check(cfg_path: str, *, skip_reconcile: bool, notify: bool = False) -> int:
@@ -40,11 +70,14 @@ async def run_m1_check(cfg_path: str, *, skip_reconcile: bool, notify: bool = Fa
         else:
             print(f"72h collection: PASS ({span_h:.1f}h snapshot span)")
 
-        flags = conn.execute("SELECT COUNT(*) FROM scanner_flags").fetchone()[0]
-        if flags < 1:
-            failures.append("scanner flags accumulating: FAIL (zero flags)")
+        cont_ok, cont_detail = _snapshot_continuity(conn)
+        if not cont_ok:
+            failures.append(f"hourly continuity: FAIL ({cont_detail})")
         else:
-            print(f"scanner flags: PASS ({flags} total)")
+            print(f"hourly continuity: PASS ({cont_detail})")
+
+        flags = conn.execute("SELECT COUNT(*) FROM scanner_flags").fetchone()[0]
+        print(f"scanner flags: {flags} total (quiet market OK — continuity is the gate)")
 
         recent = conn.execute(
             "SELECT COUNT(*) FROM market_snapshots WHERE ts_ms >= ?",

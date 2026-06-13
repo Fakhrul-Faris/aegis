@@ -1,6 +1,6 @@
-# Fly.io worker app: the Aegis collector daemon (no HTTP service).
-# Deploy:    fly deploy
-# Secrets:   fly secrets set TELEGRAM_BOT_TOKEN=... (see .env.example for keys)
+# Fly.io worker app: collector + Telegram command bot (/status, /paper, …).
+# Deploy:    fly deploy   (wait until M1 72h gate passes — restart voids the clock)
+# Secrets:   fly secrets set TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=...
 # Volume:    fly volumes create aegis_data --size 1   (SQLite + logs live here)
 
 app = "aegis-collector"

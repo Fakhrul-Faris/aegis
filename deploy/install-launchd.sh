@@ -9,7 +9,9 @@ AGENTS_DIR="$HOME/Library/LaunchAgents"
 
 mkdir -p "$AGENTS_DIR" "$REPO/logs"
 
-for name in ingest scanner portfolio kpi telegrambot; do
+# Telegram /commands run on Fly inside aegis-collector — do not load telegrambot
+# locally unless you are offline-testing (only one getUpdates poller per token).
+for name in ingest scanner portfolio kpi; do
     label="com.aegis.$name"
     plist="$AGENTS_DIR/$label.plist"
     sed -e "s|__REPO__|$REPO|g" -e "s|__UV__|$UV|g" \

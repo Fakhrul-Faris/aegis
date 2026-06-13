@@ -6,9 +6,8 @@ the portfolio brain once wired to live data. Regime flips never widen stops.
 
 from __future__ import annotations
 
-from enum import StrEnum
-
 from dataclasses import dataclass
+from enum import StrEnum
 
 import numpy as np
 

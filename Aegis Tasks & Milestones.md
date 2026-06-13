@@ -14,7 +14,7 @@ How to use this document: work top to bottom, check tasks off as they complete, 
 | **ID** | **Milestone**                      | **Target**  | **Gate (all must hold)**                                                                                              | **Status** |
 | ------ | ---------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------- | ---------- |
 | M0     | Dev environment ready              | Week 1      | Repo, config, secrets handling, CI test runner all working                                                            | ☑ Jun 11   |
-| M1     | Data layer live + scanner logging  | Week 3      | 72h uninterrupted collection; candles reconcile vs exchange UI; scanner flags in SQLite                               | ☐          |
+| M1     | Data layer live + scanner logging  | Week 3      | 72h uninterrupted collection; candles reconcile vs exchange UI; scanner flags in SQLite                               | ⏳ Jun 13  |
 | M2     | Math engine validated              | Week 6      | All unit tests pass incl. synthetic-data tests for every pillar (Concept §9)                                          | ☑ Jun 11   |
 | M3     | Backtest gates passed              | Week 8      | Walk-forward 2020-2026: ≥300 trades, expectancy 90% CI > 0 net of full cost model, max DD inside Monte Carlo envelope | ☐          |
 | M4     | Risk engine + testnet execution    | Week 12     | 20+ testnet spread trades; leg-2-miss drill passed; breaker drill passed                                              | ☐          |
@@ -64,8 +64,8 @@ How to use this document: work top to bottom, check tasks off as they complete, 
 - [x] Telegram bot: error/crash alerts (live delivery confirmed). Daily heartbeat with collection stats at 16:00 UTC (midnight MYT) - first summary delivered Jun 10
 - [x] Daily summary job: candles/snapshots/flags in 24h (by variant), unfilled gap count, DB size, silent-scanner warning (`aegis-summary` + automatic in collector)
 
-**M0 gate check:** ☑ repo + config + tests run end-to-end (101 tests, CI green, testnet connectivity proven)
-**M1 gate check:** ☐ 72h uninterrupted collection ☐ reconciliation passes ☐ scanner flags accumulating ☐ Telegram heartbeat daily
+**M0 gate check:** ☑ repo + config + tests run end-to-end (161 tests, CI green, testnet connectivity proven)
+**M1 gate check:** ⏳ 72h clock started Jun 10 ~16:00 UTC — gate check due **Jun 13 ~16:00 UTC** (`aegis-m1-check`). Do not restart Fly collector before pass. **Post-M1 deploy is automatic** (collector + GitHub Action Jun 13–15 17:30 UTC) once M1 passes — sets `FLY_API_TOKEN` on Fly: `fly secrets set FLY_API_TOKEN=$(fly auth token) -a aegis-collector`
 
 ## **Phase 1 - Strategy B Research & Math Engine (Weeks 3-8) → M2, M3**
 
@@ -190,7 +190,7 @@ How to use this document: work top to bottom, check tasks off as they complete, 
 
 ### P3.3 Paper exit criteria (M6 gate)
 
-- [ ] ≥8 weeks elapsed, ≥40 Strategy B paper trades
+- [ ] ≥8 weeks elapsed, ≥40 Strategy A paper trades
 - [ ] Paper expectancy 90% CI overlaps backtest CI (consistency, not just positivity)
 - [ ] Simulated slippage assumptions validated against observed spreads
 - [ ] Zero unexplained crashes or reconciliation breaks in final 4 weeks

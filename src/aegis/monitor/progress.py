@@ -12,12 +12,14 @@ from pathlib import Path
 from aegis.config import AegisConfig
 from aegis.data import db
 from aegis.monitor.config_freeze import FREEZE_SCOPE, _ensure_table
-from aegis.monitor.m1_check import REQUIRED_HOURS, _collection_span_hours
+from aegis.monitor.m1_check import REQUIRED_HOURS, _collection_span_hours, _snapshot_continuity
 
-# Fly testnet soak (M4) — authoritative clock; update if redeployed.
-SOAK_FLY_STARTED_UTC = datetime(2026, 6, 11, 16, 11, tzinfo=UTC)
-SOAK_DURATION_DAYS = 7
-M1_GATE_TARGET_UTC = datetime(2026, 6, 13, 16, 0, tzinfo=UTC)
+from aegis.monitor.milestone_schedule import (
+    M1_GATE_TARGET_UTC,
+    SOAK_DURATION_DAYS,
+    SOAK_FLY_STARTED_UTC,
+    soak_end_utc,
+)
 
 ICON_PASS = "✅"
 ICON_FAIL = "❌"
@@ -45,6 +47,24 @@ def _soak_fly_progress(now: datetime | None = None) -> tuple[float, str]:
     return elapsed, detail
 
 
+def _soak_verdict_icon(cfg: AegisConfig, elapsed_days: float) -> tuple[str, str]:
+    """Read persisted soak verdict; never auto-pass M4 on elapsed time alone."""
+    if elapsed_days < SOAK_DURATION_DAYS:
+        return ICON_WAIT, ""
+    path = Path(cfg.sqlite_path).parent / "soak_verdict.json"
+    if not path.exists():
+        return ICON_WAIT, " · awaiting FINAL Telegram verdict"
+    try:
+        verdict = json.loads(path.read_text())
+        passed = bool(verdict.get("passed"))
+        spreads_fail = verdict.get("spreads_fail", 0)
+        anomalies = verdict.get("anomalies", 0)
+        suffix = f" · spreads_fail={spreads_fail} anomalies={anomalies}"
+        return (ICON_PASS if passed else ICON_FAIL), suffix
+    except (json.JSONDecodeError, OSError):
+        return ICON_WAIT, " · soak_verdict.json unreadable"
+
+
 def _m1_status(conn: sqlite3.Connection) -> tuple[str, str]:
     span = _collection_span_hours(conn)
     if span is None:
@@ -54,11 +74,14 @@ def _m1_status(conn: sqlite3.Connection) -> tuple[str, str]:
         (int(time.time() * 1000) - 86_400_000,),
     ).fetchone()[0]
     flags = conn.execute("SELECT COUNT(*) FROM scanner_flags").fetchone()[0]
-    if span >= REQUIRED_HOURS and recent >= 20:
-        icon = ICON_PASS if flags >= 1 else ICON_WAIT
-        flag_note = f"{flags} flags" if flags else "0 flags (quiet market OK for gate)"
-        return icon, f"{span:.0f}h span · {recent} snapshots/24h · {flag_note}"
-    return ICON_WAIT, f"{span:.1f}h / {REQUIRED_HOURS}h span · {recent} snapshots/24h"
+    cont_ok, cont_detail = _snapshot_continuity(conn)
+    if span >= REQUIRED_HOURS and recent >= 20 and cont_ok:
+        flag_note = f"{flags} flags" if flags else "0 flags (quiet market OK)"
+        return ICON_PASS, f"{span:.0f}h span · {cont_detail} · {flag_note}"
+    parts = [f"{span:.1f}h / {REQUIRED_HOURS}h span", f"{recent} snapshots/24h"]
+    if not cont_ok:
+        parts.append(cont_detail)
+    return ICON_WAIT, " · ".join(parts)
 
 
 def _config_freeze_status(conn: sqlite3.Connection) -> tuple[bool, str]:
@@ -89,15 +112,11 @@ def _local_soak_note(cfg: AegisConfig) -> str | None:
 def build_milestones(cfg: AegisConfig, conn: sqlite3.Connection) -> list[MilestoneLine]:
     m1_icon, m1_detail = _m1_status(conn)
     soak_elapsed, soak_detail = _soak_fly_progress()
-    soak_icon = ICON_PASS if soak_elapsed >= SOAK_DURATION_DAYS else ICON_WAIT
+    soak_icon, soak_suffix = _soak_verdict_icon(cfg, soak_elapsed)
     frozen, freeze_detail = _config_freeze_status(conn)
     paper_running = cfg.mode == "paper"
 
-    m4_detail = soak_detail
-    if soak_elapsed >= SOAK_DURATION_DAYS:
-        m4_detail += " · check FINAL Telegram verdict"
-    else:
-        m4_detail += " · 20+ spreads + leg-2 drill done"
+    m4_detail = f"{soak_detail}{soak_suffix} · 20+ spreads + leg-2 drill done"
 
     m5_icon = ICON_WAIT if paper_running and frozen else ICON_TODO
     m5_detail = freeze_detail if frozen else "paper pipeline running; formal 8w clock after M4"
@@ -132,9 +151,7 @@ def build_progress_report(cfg: AegisConfig) -> str:
             lines.append(f"  {m.icon} {m.code} {m.title}")
             lines.append(f"      {m.detail}")
 
-        end_dt = datetime.fromtimestamp(
-            SOAK_FLY_STARTED_UTC.timestamp() + SOAK_DURATION_DAYS * 86400, tz=UTC
-        )
+        end_dt = soak_end_utc()
         lines.extend(
             [
                 "",
@@ -143,8 +160,8 @@ def build_progress_report(cfg: AegisConfig) -> str:
                 "  B pairs (2021-26): 0 walk-forward trades — NO-GO",
                 "",
                 "What's running:",
-                "  Mac: ingest, scanner, portfolio (paper), Telegram bot",
-                "  Fly: aegis-collector (M1 clock), aegis-testnet-soak (M4)",
+                "  Mac: ingest, scanner, portfolio (optional while awake)",
+                "  Fly: aegis-collector (data + Telegram /commands), aegis-testnet-soak (M4)",
                 "",
                 "Next gates:",
                 f"  M1 check ~{M1_GATE_TARGET_UTC.strftime('%b %d')} — aegis-m1-check",

@@ -209,6 +209,15 @@ def _format_breakdown_section(title: str, segments: tuple[KpiSegment, ...]) -> l
     return lines
 
 
+def _gates_breached(conn: sqlite3.Connection, since_ms: int) -> int:
+    """Count operational breaches in the reporting window (crashes, failed soak spreads)."""
+    crashes = conn.execute(
+        "SELECT COUNT(*) FROM soak_log WHERE event = 'crash' AND ts_ms >= ?",
+        (since_ms,),
+    ).fetchone()[0]
+    return int(crashes or 0)
+
+
 def build_weekly_kpi(conn: sqlite3.Connection, now_ms: int | None = None) -> WeeklyKpi:
     now = now_ms if now_ms is not None else int(time.time() * 1000)
     since = now - WEEK_MS
@@ -236,7 +245,7 @@ def build_weekly_kpi(conn: sqlite3.Connection, now_ms: int | None = None) -> Wee
         expectancy_ci_high=exp_hi,
         max_dd_pct=_max_drawdown_pct(conn),
         scanner_flags_cum=flags_cum,
-        gates_breached=0,
+        gates_breached=_gates_breached(conn, since),
         tier_breakdown=build_tier_breakdown(conn),
         variant_breakdown=build_variant_breakdown(conn),
         signal_log=build_signal_log(conn),

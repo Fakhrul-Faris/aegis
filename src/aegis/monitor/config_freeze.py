@@ -28,6 +28,14 @@ def _paper_blob(cfg: AegisConfig) -> str:
             "mid": cfg.risk.tiers.mid,
             "aggressive": cfg.risk.tiers.aggressive,
         },
+        "risk_limits": {
+            "max_concurrent_risk_r": cfg.risk.max_concurrent_risk_r,
+            "slippage_gate_pct": cfg.risk.slippage_gate_pct,
+            "correlation_trigger": cfg.risk.correlation_trigger,
+            "correlation_release": cfg.risk.correlation_release,
+            "correlation_min_observations": cfg.risk.correlation_min_observations,
+            "daily_breaker_multiple": cfg.risk.daily_breaker_multiple,
+        },
         "regime": {
             "adx_trend_threshold": cfg.regime.adx_trend_threshold,
             "adx_sideways_threshold": cfg.regime.adx_sideways_threshold,

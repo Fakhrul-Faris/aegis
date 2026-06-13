@@ -18,6 +18,7 @@ from aegis.config import AegisConfig, load_config
 from aegis.data import db
 from aegis.log import setup_logging
 from aegis.monitor.config_freeze import FREEZE_SCOPE, config_hash
+from aegis.monitor.daily_scorecard import build_daily_scorecard, format_daily_scorecard
 from aegis.monitor.doctor import format_doctor_report
 from aegis.monitor.kpi import build_weekly_kpi, format_weekly_kpi
 from aegis.monitor.progress import build_progress_report
@@ -121,7 +122,8 @@ def _config_freeze_line(conn: sqlite3.Connection, cfg: AegisConfig) -> str:
 def build_paper_report(cfg: AegisConfig) -> str:
     conn = db.connect(cfg.sqlite_path)
     try:
-        equity = db.latest_paper_equity(conn)
+        now_ms = int(time.time() * 1000)
+        card = build_daily_scorecard(conn, now_ms)
         open_positions = db.open_paper_positions(conn)
         taken = conn.execute(
             "SELECT COUNT(*) FROM signals WHERE strategy='A' AND taken=1"
@@ -129,25 +131,17 @@ def build_paper_report(cfg: AegisConfig) -> str:
         skipped = conn.execute(
             "SELECT COUNT(*) FROM signals WHERE strategy='A' AND taken=0"
         ).fetchone()[0]
-        closed = conn.execute(
-            """
-            SELECT COUNT(*), COALESCE(SUM(realized_pnl), 0)
-            FROM positions
-            WHERE strategy='A' AND closed_ts_ms IS NOT NULL
-            """
-        ).fetchone()
 
         lines = [
-            f"Aegis paper — {cfg.mode}",
-            f"Equity: ${equity:,.2f}",
-            f"Open positions: {len(open_positions)}",
+            format_daily_scorecard(card, conn, now_ms),
+            "",
+            f"Mode: {cfg.mode}",
             f"Signals: {taken} taken / {skipped} skipped",
-            f"Closed trades: {closed[0]} | realized ${float(closed[1] or 0):,.2f}",
             _config_freeze_line(conn, cfg),
         ]
         if open_positions:
             lines.append("")
-            lines.append("Open:")
+            lines.append("Open positions:")
             for pos in open_positions:
                 lines.append(
                     f"  {pos.symbol} qty={pos.quantity:.6f} @ ${pos.entry_price:,.2f}"
@@ -206,7 +200,6 @@ async def dispatch_command(cfg: AegisConfig, command: str) -> tuple[str, dict | 
             text = build_summary(conn)
         finally:
             conn.close()
-        stamp = datetime.now(tz=UTC).strftime("%Y-%m-%d %H:%M UTC")
         return f"{text}\n\nReply via buttons or /commands.", MENU_KEYBOARD
     if command == "paper":
         return build_paper_report(cfg), None
@@ -270,6 +263,15 @@ async def handle_update(cfg: AegisConfig, notifier: TelegramNotifier, update: di
     return update_id + 1
 
 
+def command_bot_enabled(cfg: AegisConfig) -> bool:
+    """True when long-poll command bot can run (token + chat id configured)."""
+    return bool(
+        cfg.monitoring.telegram_enabled
+        and cfg.secrets.telegram_bot_token
+        and cfg.secrets.telegram_chat_id
+    )
+
+
 async def run_bot(cfg: AegisConfig, *, once: bool = False) -> None:
     notifier = notifier_from_config(cfg)
     if not notifier.enabled:
@@ -291,6 +293,9 @@ async def run_bot(cfg: AegisConfig, *, once: bool = False) -> None:
                 break
             if not updates:
                 await asyncio.sleep(1)
+    except asyncio.CancelledError:
+        logger.info("telegram bot stopped")
+        raise
     finally:
         await notifier.close()
 

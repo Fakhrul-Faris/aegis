@@ -134,6 +134,7 @@ class Secrets:
     kraken_api_key: str | None = field(default=None, repr=False)
     kraken_api_secret: str | None = field(default=None, repr=False)
     coingecko_api_key: str | None = None
+    fly_api_token: str | None = field(default=None, repr=False)
 
 
 @dataclass(frozen=True)
@@ -284,6 +285,7 @@ def load_config(
             kraken_api_key=os.environ.get("KRAKEN_API_KEY") or None,
             kraken_api_secret=os.environ.get("KRAKEN_API_SECRET") or None,
             coingecko_api_key=os.environ.get("COINGECKO_API_KEY") or None,
+            fly_api_token=os.environ.get("FLY_API_TOKEN") or None,
         ),
     )
 

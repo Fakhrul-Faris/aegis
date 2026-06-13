@@ -9,6 +9,13 @@ RUN uv sync --frozen --no-install-project --no-dev
 COPY . .
 RUN uv sync --frozen --no-dev
 
+# flyctl for one-shot post-M1 deploy from the running collector.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && curl -L https://fly.io/install.sh | sh \
+    && rm -rf /var/lib/apt/lists/*
+ENV PATH="/root/.fly/bin:${PATH}"
+
 ENV PATH="/app/.venv/bin:$PATH"
 # Writable state lives on the mounted volume (see fly.toml).
 ENV AEGIS_SQLITE_PATH=/data/aegis.sqlite

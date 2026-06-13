@@ -20,6 +20,8 @@ uv.lock.tmp
 logs/
 *.log
 soak_state.json
+soak_verdict.json
+collector_state.json
 *.sqlite
 *.sqlite3
 *.sqlite-shm

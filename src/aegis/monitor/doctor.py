@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import os
 import sqlite3
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 from aegis.config import load_config

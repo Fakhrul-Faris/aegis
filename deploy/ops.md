@@ -20,9 +20,10 @@ uv run aegis-doctor    # fix any issues before trusting the stack
 | `launchctl list \| grep com.aegis` | Daily | second column `0` for each agent |
 | `uv run aegis-summary` | Daily (or read Telegram) | snapshots > 0, flags accumulating |
 | `uv run aegis-kpi-report --print-only` | Sunday | fills Section 5 row |
-| Telegram `/status`, `/progress`, `/paper` | Anytime | read-only bot menu |
+| Telegram `/status`, `/progress`, `/paper` | Anytime | Fly collector answers (24/7); Mac can sleep |
 | `uv run aegis-breaker-drill` | Once (M4 gate) | exit 0 |
-| `fly status -a aegis-collector` | Weekly | machine started |
+| `fly secrets set FLY_API_TOKEN=$(fly auth token) -a aegis-collector` | Once before Jun 13 | Post-M1 auto-deploy from collector |
+| `./deploy/post-m1-deploy.sh` | Manual backup after M1 | deploy if GitHub Action missed |
 | `fly logs -a aegis-testnet-soak` | During soak (→ Jun 18) | no crash loops |
 
 ## Agents (macOS launchd)
@@ -33,7 +34,7 @@ uv run aegis-doctor    # fix any issues before trusting the stack
 | `com.aegis.scanner` | hourly :08 | CoinGecko anomaly flags |
 | `com.aegis.portfolio` | every 4h | Strategy A paper cycle |
 | `com.aegis.kpi` | Sun 17:00 UTC | Weekly KPI → Telegram + Section 5 |
-| `com.aegis.telegrambot` | always | Read-only Telegram command bot |
+| `com.aegis.telegrambot` | — | **On Fly** inside `aegis-collector` (do not run locally) |
 
 Agents are staggered so they do not all open SQLite at the same second.
 `db.connect()` waits up to 30s on lock (`busy_timeout`) before failing.

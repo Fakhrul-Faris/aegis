@@ -6,13 +6,10 @@
 ./deploy/install-launchd.sh
 ```
 
-Installs three launchd agents that also fire on boot/login:
-
-- `com.aegis.ingest` - candle ingestion (Hyperliquid top-50 + Kraken majors)
-- `com.aegis.scanner` - CoinGecko volume anomaly scanner
-- `com.aegis.portfolio` - Strategy A paper cycle every 4h (`mode=paper`)
-- `com.aegis.kpi` - weekly KPI report (Sunday 17:00 UTC)
-- `com.aegis.telegrambot` - read-only Telegram commands (`/status`, `/paper`, …)
+Installs four launchd agents (ingest, scanner, portfolio, kpi). **Telegram
+/commands** (`/status`, `/paper`, …) run on **Fly** inside `aegis-collector` —
+do not load `com.aegis.telegrambot` locally while Fly is polling (one listener
+per bot token).
 
 Both alert Telegram on crash. Check health:
 

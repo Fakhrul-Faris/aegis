@@ -1,11 +1,10 @@
 """Progress report tests."""
 
 from dataclasses import replace
-from datetime import UTC, datetime
 
 from aegis.config import load_config
 from aegis.data import db
-from aegis.monitor.progress import build_progress_report, build_milestones
+from aegis.monitor.progress import build_milestones, build_progress_report
 
 
 def _cfg(**kwargs):

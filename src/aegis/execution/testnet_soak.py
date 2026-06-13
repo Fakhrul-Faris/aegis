@@ -41,6 +41,7 @@ DEFAULT_SPREAD_INTERVAL_HOURS = 6
 DEFAULT_ORDER_USD = 12.0
 _TICK_SECONDS = 3600
 _STATE_FILE = "soak_state.json"
+_VERDICT_FILE = "soak_verdict.json"
 
 
 @dataclass
@@ -70,6 +71,23 @@ def _save_state(cfg: AegisConfig, state: SoakState) -> None:
     path = _state_path(cfg)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(asdict(state), indent=2))
+
+
+def _save_verdict(cfg: AegisConfig, *, passed: bool, state: SoakState) -> None:
+    path = Path(cfg.sqlite_path).parent / _VERDICT_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "passed": passed,
+                "completed_at_ms": int(time.time() * 1000),
+                "spreads_ok": state.spreads_ok,
+                "spreads_fail": state.spreads_fail,
+                "anomalies": state.anomalies,
+            },
+            indent=2,
+        )
+    )
 
 
 def _soak_elapsed_days(state: SoakState) -> float:
@@ -262,6 +280,7 @@ async def soak_main(
 
             if _soak_elapsed_days(state) >= SOAK_DURATION_DAYS:
                 passed = state.anomalies == 0 and state.spreads_fail == 0
+                _save_verdict(cfg, passed=passed, state=state)
                 await send_soak_summary(cfg, state, final=True)
                 from aegis.monitor.milestones import notify_soak_verdict
 

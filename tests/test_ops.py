@@ -7,7 +7,7 @@ import pytest
 from aegis.config import AegisConfig, ConfigError, load_config
 from aegis.data import db
 from aegis.monitor.config_freeze import config_hash, verify_or_freeze_paper_config
-from aegis.monitor.m1_check import _collection_span_hours
+from aegis.monitor.m1_check import _collection_span_hours, _snapshot_continuity
 
 
 def _cfg(**overrides) -> AegisConfig:
@@ -79,3 +79,6 @@ def test_m1_collection_span_hours(tmp_path):
         ],
     )
     assert _collection_span_hours(conn) == pytest.approx(72.0)
+    ok, detail = _snapshot_continuity(conn, window_hours=72, now_ms=end + 3_600_000)
+    assert not ok
+    assert "coverage" in detail or "gap" in detail
