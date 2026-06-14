@@ -26,6 +26,19 @@ uv run aegis-doctor    # fix any issues before trusting the stack
 | `./deploy/post-m1-deploy.sh` | Manual backup after M1 | deploy if GitHub Action missed |
 | `fly logs -a aegis-testnet-soak` | During soak (→ Jun 18) | no crash loops |
 
+## Fly.io (`aegis-collector`)
+
+Telegram secrets, command bot (`/forex`, `/status`), daily summary (crypto+forex),
+forex paper hourly, and calendar alerts all run on Fly. See `research/forex-fx5-launch.md`.
+
+```bash
+fly secrets list -a aegis-collector
+fly logs -a aegis-collector
+fly ssh console -a aegis-collector -C "aegis-telegram-ping"
+```
+
+After FX5 code deploy: `fly deploy -a aegis-collector` (respect M1 restart rules).
+
 ## Agents (macOS launchd)
 
 | Label | Interval | Role |

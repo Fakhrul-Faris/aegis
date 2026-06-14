@@ -1,0 +1,15 @@
+# Forex demo paper — OPTIONAL local cron
+#
+# Production: forex runs inside Fly ``aegis-collector`` (see research/forex-fx5-launch.md).
+# Only use this file if you want a local Mac copy of the paper loop.
+#
+# Telegram on Fly: do NOT run local summary if Fly already sends at 16:00 UTC.
+
+AEGIS_ROOT=/Users/mac/Aegis/aegis
+PATH=/usr/local/bin:/usr/bin:/bin
+AEGIS_FOREX_DEMO_SQLITE_PATH=$AEGIS_ROOT/aegis.sqlite
+
+# Hourly: ingest (Yahoo) + event fade cycle
+# 0 * * * * cd $AEGIS_ROOT && uv run aegis-forex-paper-run >> logs/forex-paper.log 2>&1
+
+# Fly handles: aegis-summary (16:00 UTC), calendar alerts (15m), /forex bot

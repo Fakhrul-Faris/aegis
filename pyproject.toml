@@ -12,6 +12,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "pyyaml>=6.0",
     "statsmodels>=0.14",
+    "yfinance>=0.2",
 ]
 
 [project.scripts]
@@ -20,6 +21,7 @@ aegis-ingest = "aegis.data.ingest:main"
 aegis-reconcile = "aegis.data.reconcile:main"
 aegis-scan = "aegis.data.scanner:main"
 aegis-summary = "aegis.monitor.summary:main"
+aegis-telegram-ping = "aegis.monitor.telegram_ping:main"
 aegis-kpi-report = "aegis.monitor.kpi:main"
 aegis-testnet-check = "aegis.execution.testnet_check:main"
 aegis-leg2-miss-drill = "aegis.execution.leg2_miss_drill:main"
@@ -33,6 +35,29 @@ aegis-doctor = "aegis.monitor.doctor:main"
 aegis-telegram-bot = "aegis.monitor.telegram_bot:main"
 aegis-m1-check = "aegis.monitor.m1_check:main"
 aegis-download = "aegis.data.download:main"
+aegis-forex-download = "aegis.data.forex_download:main"
+aegis-forex-fx0-check = "aegis.monitor.forex_fx0_check:main"
+aegis-backtest-forex-scm = "aegis.backtest.forex_scm_run:main"
+aegis-backtest-forex-fx3 = "aegis.backtest.forex_fx3_run:main"
+aegis-forex-research-sweep = "aegis.backtest.forex_research_sweep:main"
+aegis-forex-hypothesis-sweep = "aegis.backtest.forex_hypothesis_sweep:main"
+aegis-forex-h11b-sweep = "aegis.backtest.forex_h11b_sweep:main"
+aegis-forex-h11c-sweep = "aegis.backtest.forex_h11c_sweep:main"
+aegis-forex-ingest = "aegis.data.forex_ingest:main"
+aegis-forex-fx4-check = "aegis.monitor.forex_fx4_check:main"
+aegis-forex-reconcile = "aegis.monitor.forex_reconcile:main"
+aegis-forex-event-fade = "aegis.portfolio.forex_event_fade:main"
+aegis-forex-paper-run = "aegis.portfolio.forex_paper_run:main"
+aegis-forex-summary = "aegis.monitor.forex_summary:main"
+aegis-forex-kpi-report = "aegis.monitor.forex_kpi:main"
+aegis-forex-calendar-alerts = "aegis.monitor.forex_calendar_alerts:main"
+aegis-forex-fx5-check = "aegis.monitor.forex_fx5_check:main"
+aegis-backtest-forex-realistic = "aegis.backtest.forex_realistic_backtest:main"
+aegis-backtest-forex-grid = "aegis.backtest.forex_backtest_grid:main"
+aegis-forex-fx-r-check = "aegis.monitor.forex_fx_r_check:main_fx_r_check_cli"
+aegis-forex-recipe-list = "aegis.monitor.forex_fx_r_check:main_recipe_list_cli"
+aegis-forex-recipe-compare = "aegis.monitor.forex_fx_r_check:main_recipe_compare_cli"
+aegis-forex-research-goal = "aegis.monitor.forex_fx_r_check:main_research_goal_cli"
 
 [dependency-groups]
 dev = [

@@ -68,6 +68,36 @@ def _closed_only(candles, interval_ms: int, now_ms: int):
     return [c for c in candles if int(c.open_time.timestamp() * 1000) + interval_ms <= now_ms]
 
 
+def _cached_hl_symbols(conn, top_n: int) -> list[str]:
+    """Last-known Hyperliquid universe from stored 1h candles (volume-ranked)."""
+    rows = conn.execute(
+        """
+        SELECT symbol, SUM(volume) AS vol
+        FROM candles
+        WHERE venue = ? AND timeframe = '1h'
+        GROUP BY symbol
+        ORDER BY vol DESC
+        LIMIT ?
+        """,
+        (Venue.HYPERLIQUID.value, top_n),
+    ).fetchall()
+    return [r[0] for r in rows]
+
+
+async def _resolve_hl_universe(market_data: MarketData, conn, top_n: int) -> list[str]:
+    try:
+        return await market_data.fetch_top_coins_by_volume(top_n)
+    except Exception as exc:
+        coins = _cached_hl_symbols(conn, top_n)
+        if not coins:
+            raise
+        logger.warning(
+            "hyperliquid universe fetch failed; using cached symbols",
+            extra={"error": repr(exc), "symbols": len(coins)},
+        )
+        return coins
+
+
 async def ingest_series(
     market_data: MarketData,
     conn,
@@ -172,7 +202,7 @@ async def run_once(cfg: AegisConfig) -> IngestReport:
         # NOTE: market data always comes from Hyperliquid MAINNET - statistics
         # on testnet prices would be statistics about nothing. The testnet
         # flag applies to order execution only.
-        coins = await hyperliquid.fetch_top_coins_by_volume(cfg.data.hyperliquid_top_n)
+        coins = await _resolve_hl_universe(hyperliquid, conn, cfg.data.hyperliquid_top_n)
 
         for venue, md, symbols in (
             (Venue.HYPERLIQUID, hyperliquid, coins),

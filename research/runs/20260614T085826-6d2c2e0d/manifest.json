@@ -1,0 +1,12 @@
+{
+  "run_id": "20260614T085826-6d2c2e0d",
+  "pipeline": "forex_backtest_grid",
+  "hypothesis_id": null,
+  "started_at": "2026-06-14T08:58:26.136465+00:00",
+  "git_sha": "301ab49",
+  "config_hash": null,
+  "as_of": "2024-03-01",
+  "status": "complete",
+  "checkpoint_step": "grid_dates_built",
+  "metrics_path": "research/runs/20260614T085826-6d2c2e0d/metrics.json"
+}

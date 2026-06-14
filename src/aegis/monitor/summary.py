@@ -17,6 +17,7 @@ from aegis.config import AegisConfig, load_config
 from aegis.data import db
 from aegis.log import setup_logging
 from aegis.monitor.daily_scorecard import build_daily_scorecard, format_daily_scorecard
+from aegis.monitor.forex_scorecard import build_forex_section
 
 DAY_MS = 86_400_000
 
@@ -71,6 +72,10 @@ def build_summary(conn: sqlite3.Connection, now_ms: int | None = None) -> str:
         lines.append("")
         lines.append("WARNING: zero snapshots in 24h — scanner down?")
 
+    forex_block = build_forex_section(now_ms=now)
+    if forex_block:
+        lines.extend(["", "=" * 40, "", forex_block])
+
     stamp = datetime.fromtimestamp(now / 1000, tz=UTC).strftime("%H:%M UTC")
     lines.append("")
     lines.append(f"Report time: {stamp}")
@@ -97,10 +102,18 @@ async def send_daily_summary(cfg: AegisConfig) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Aegis daily summary")
     parser.add_argument("--config", default="config/config.yaml")
+    parser.add_argument("--print-only", action="store_true", help="stdout only, no Telegram")
     args = parser.parse_args()
     cfg = load_config(args.config)
     setup_logging(cfg.monitoring.log_dir, cfg.monitoring.log_level)
-    print(asyncio.run(send_daily_summary(cfg)))
+    if args.print_only:
+        conn = db.connect(cfg.sqlite_path)
+        try:
+            print(build_summary(conn))
+        finally:
+            conn.close()
+    else:
+        print(asyncio.run(send_daily_summary(cfg)))
 
 
 if __name__ == "__main__":

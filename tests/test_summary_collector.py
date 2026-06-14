@@ -82,6 +82,17 @@ def test_command_bot_enabled_requires_credentials():
     assert command_bot_enabled(cfg2)
 
 
+def test_forex_kpi_due_sunday_once_per_week():
+    from aegis.collector import forex_kpi_due
+
+    ts = datetime(2026, 6, 14, 17, 30, tzinfo=UTC).timestamp()
+    due, week = forex_kpi_due(ts, last_kpi_week=None)
+    assert due is True
+    assert week == "2026-W24"
+    due2, _ = forex_kpi_due(ts + 3600, last_kpi_week=week)
+    assert due2 is False
+
+
 def test_summary_due_once_per_day():
     hour = 16
     ts = datetime(2026, 6, 10, 16, 1, tzinfo=UTC).timestamp()
@@ -89,16 +100,13 @@ def test_summary_due_once_per_day():
     due, day_key = summary_due(ts, hour, last_sent_day=None)
     assert due and day_key == "2026-06-10"
 
-    # Same day, later hour: already sent.
     due2, _ = summary_due(ts + 3600, hour, last_sent_day="2026-06-10")
     assert not due2
 
-    # Before the summary hour: not yet due.
     early = datetime(2026, 6, 11, 8, 0, tzinfo=UTC).timestamp()
     due3, _ = summary_due(early, hour, last_sent_day="2026-06-10")
     assert not due3
 
-    # Next day at the hour: due again.
     next_day = datetime(2026, 6, 11, 16, 30, tzinfo=UTC).timestamp()
     due4, day4 = summary_due(next_day, hour, last_sent_day="2026-06-10")
     assert due4 and day4 == "2026-06-11"

@@ -6,6 +6,8 @@
 
 How to use this document: work top to bottom, check tasks off as they complete, and never start a phase before the previous milestone's gate criteria are ALL met. Update the KPI log (Section 5) every Sunday. Gates are pass/fail - "almost" is fail.
 
+**Forex track (parallel, demo/paper only):** see `Aegis Forex Tasks & Milestones.md` — Session-Confirmed Momentum (SCM). Independent gates (FX0–FX8); nothing live until FX6.
+
 ---
 
 # **1 Milestone Overview**
@@ -14,7 +16,7 @@ How to use this document: work top to bottom, check tasks off as they complete, 
 | **ID** | **Milestone**                      | **Target**  | **Gate (all must hold)**                                                                                              | **Status** |
 | ------ | ---------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------- | ---------- |
 | M0     | Dev environment ready              | Week 1      | Repo, config, secrets handling, CI test runner all working                                                            | ☑ Jun 11   |
-| M1     | Data layer live + scanner logging  | Week 3      | 72h uninterrupted collection; candles reconcile vs exchange UI; scanner flags in SQLite                               | ⏳ Jun 13  |
+| M1     | Data layer live + scanner logging  | Week 3      | 72h uninterrupted collection; candles reconcile vs exchange UI; scanner flags in SQLite                               | ⏳ Jun 13   |
 | M2     | Math engine validated              | Week 6      | All unit tests pass incl. synthetic-data tests for every pillar (Concept §9)                                          | ☑ Jun 11   |
 | M3     | Backtest gates passed              | Week 8      | Walk-forward 2020-2026: ≥300 trades, expectancy 90% CI > 0 net of full cost model, max DD inside Monte Carlo envelope | ☐          |
 | M4     | Risk engine + testnet execution    | Week 12     | 20+ testnet spread trades; leg-2-miss drill passed; breaker drill passed                                              | ☐          |

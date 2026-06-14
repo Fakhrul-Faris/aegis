@@ -30,26 +30,60 @@ def _state_path(cfg: AegisConfig) -> Path:
     return Path(cfg.sqlite_path).parent / _STATE_FILE
 
 
-def _read_last_summary_day(cfg: AegisConfig) -> str | None:
+def _read_collector_state(cfg: AegisConfig) -> dict:
     path = _state_path(cfg)
     if not path.exists():
-        return None
+        return {}
     try:
-        return json.loads(path.read_text()).get("last_summary_day")
+        return json.loads(path.read_text())
     except (json.JSONDecodeError, OSError):
-        return None
+        return {}
+
+
+def _write_collector_state(cfg: AegisConfig, state: dict) -> None:
+    path = _state_path(cfg)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(state))
+
+
+def _read_last_summary_day(cfg: AegisConfig) -> str | None:
+    return _read_collector_state(cfg).get("last_summary_day")
 
 
 def _write_last_summary_day(cfg: AegisConfig, day_key: str) -> None:
-    path = _state_path(cfg)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"last_summary_day": day_key}))
+    state = _read_collector_state(cfg)
+    state["last_summary_day"] = day_key
+    _write_collector_state(cfg, state)
 
 
 def seconds_until_next_tick(now_s: float, offset_s: int = _OFFSET_SECONDS) -> float:
     """Seconds until the next hour boundary plus offset."""
     next_hour = (int(now_s) // 3600 + 1) * 3600
     return max(1.0, next_hour + offset_s - now_s)
+
+
+def forex_kpi_due(now_s: float, last_kpi_week: str | None) -> tuple[bool, str]:
+    """Sunday >= 17:00 UTC, once per ISO week."""
+    dt = datetime.fromtimestamp(now_s, tz=UTC)
+    week_key = dt.strftime("%G-W%V")
+    due = dt.weekday() == 6 and dt.hour >= 17 and week_key != last_kpi_week
+    return due, week_key
+
+
+async def _forex_calendar_sidecar(cfg: AegisConfig) -> None:
+    """15-minute calendar WATCH alerts — same Telegram bot as crypto."""
+    from aegis.monitor.forex_collector import run_forex_calendar_alerts_if_enabled
+    from aegis.monitor.telegram import notify_crash
+
+    try:
+        while True:
+            await run_forex_calendar_alerts_if_enabled()
+            await asyncio.sleep(900)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        logger.exception("forex calendar sidecar crashed")
+        await notify_crash(cfg, "forex-calendar", exc)
 
 
 def summary_due(now_s: float, summary_hour_utc: int, last_sent_day: str | None) -> tuple[bool, str]:
@@ -72,10 +106,12 @@ async def _guarded(cfg: AegisConfig, name: str, coro) -> None:
 async def run_cycle(cfg: AegisConfig) -> None:
     from aegis.data.ingest import run_once as ingest_once
     from aegis.data.scanner import run as scan_once
+    from aegis.monitor.forex_collector import run_forex_paper_if_enabled
 
-    # Scanner first: its snapshots are unrecoverable if an hour is missed,
-    # while candle ingestion can always backfill.
+    # Scanner first: its snapshots are unrecoverable if an hour is missed.
+    # Forex paper next — must not wait on slow/failing crypto candle ingest.
     await _guarded(cfg, "scanner", scan_once(cfg))
+    await _guarded(cfg, "forex-paper", run_forex_paper_if_enabled())
     await _guarded(cfg, "ingest", ingest_once(cfg))
 
 
@@ -96,6 +132,7 @@ async def _telegram_bot_sidecar(cfg: AegisConfig) -> None:
 
 
 async def collector_main(cfg: AegisConfig, once: bool = False) -> None:
+    from aegis.monitor.forex_collector import forex_collector_enabled, send_forex_weekly_kpi_if_enabled
     from aegis.monitor.post_m1_deploy import maybe_post_m1_deploy
     from aegis.monitor.summary import send_daily_summary
     from aegis.monitor.telegram import notifier_from_config
@@ -105,40 +142,58 @@ async def collector_main(cfg: AegisConfig, once: bool = False) -> None:
     startup = "Aegis collector online - hourly scan+ingest active."
     if command_bot_enabled(cfg) and not once:
         startup += " Telegram /commands active on this host."
+    if forex_collector_enabled():
+        startup += " Forex event-fade paper active."
     await notifier.send(startup)
     await notifier.close()
 
     bot_task: asyncio.Task | None = None
+    forex_cal_task: asyncio.Task | None = None
     if command_bot_enabled(cfg) and not once:
         bot_task = asyncio.create_task(_telegram_bot_sidecar(cfg), name="telegram-bot")
         logger.info("telegram command bot started alongside collector")
+    if forex_collector_enabled() and not once:
+        forex_cal_task = asyncio.create_task(_forex_calendar_sidecar(cfg), name="forex-calendar")
+        logger.info("forex calendar alerts sidecar started (15m)")
 
-    last_summary_day = _read_last_summary_day(cfg)
+    state = _read_collector_state(cfg)
+    last_summary_day = state.get("last_summary_day")
+    last_forex_kpi_week = state.get("last_forex_kpi_week")
     try:
         while True:
             await run_cycle(cfg)
             await _guarded(cfg, "post-m1-deploy", maybe_post_m1_deploy(cfg))
 
+            now_s = time.time()
             due, day_key = summary_due(
-                time.time(), cfg.monitoring.daily_summary_hour_utc, last_summary_day
+                now_s, cfg.monitoring.daily_summary_hour_utc, last_summary_day
             )
             if due:
                 await _guarded(cfg, "summary", send_daily_summary(cfg))
                 last_summary_day = day_key
-                _write_last_summary_day(cfg, day_key)
+                state["last_summary_day"] = day_key
+                _write_collector_state(cfg, state)
+
+            kpi_due, week_key = forex_kpi_due(now_s, last_forex_kpi_week)
+            if kpi_due:
+                await _guarded(cfg, "forex-kpi", send_forex_weekly_kpi_if_enabled())
+                last_forex_kpi_week = week_key
+                state["last_forex_kpi_week"] = week_key
+                _write_collector_state(cfg, state)
 
             if once:
                 return
-            delay = seconds_until_next_tick(time.time())
+            delay = seconds_until_next_tick(now_s)
             logger.info("collector sleeping", extra={"seconds": round(delay)})
             await asyncio.sleep(delay)
     finally:
-        if bot_task is not None:
-            bot_task.cancel()
-            try:
-                await bot_task
-            except asyncio.CancelledError:
-                pass
+        for task in (bot_task, forex_cal_task):
+            if task is not None:
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
 
 
 def main() -> None:

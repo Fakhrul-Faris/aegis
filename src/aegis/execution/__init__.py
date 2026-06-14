@@ -16,6 +16,14 @@ def build_market_data(venue: Venue, testnet: bool = False):
         from aegis.execution.kraken import KrakenMarketData
 
         return KrakenMarketData()
+    if venue is Venue.FOREX_DEMO:
+        from aegis.execution.forex_market_data import build_forex_market_data
+
+        from aegis.config import load_config
+        from aegis.config_forex import load_forex_config
+
+        cfg = load_forex_config()
+        return build_forex_market_data(cfg, load_config().secrets)
     raise ValueError(f"No market data adapter for venue {venue}")
 
 

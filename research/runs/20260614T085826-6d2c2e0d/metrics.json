@@ -1,0 +1,11 @@
+{
+  "mode": "dry_run",
+  "dates": 9,
+  "freq": "weekly",
+  "strategy": "event_spike_fade",
+  "pairs": [
+    "EURUSD",
+    "GBPUSD"
+  ],
+  "message": "harness OK \u2014 run aegis-backtest-forex-realistic for full sim"
+}

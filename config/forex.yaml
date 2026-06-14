@@ -1,0 +1,145 @@
+# Aegis Forex — research & demo config.
+# Companion to config/config.yaml (crypto). Secrets stay in .env.
+#
+# FX3 FROZEN RECIPE (Jun 2026): Event Spike Fade H11b-4 — SCM v1 parked.
+
+broker: fusion_raw
+
+# Active strategy for demo paper (FX5+). SCM session-momentum variants are parked.
+active_strategy: event_spike_fade
+
+pairs:
+  - EURUSD
+  - GBPUSD
+  - USDJPY
+  - AUDUSD
+
+# Extra pairs for synthetic DXY only (not SCM-traded in FX0).
+dxy_pairs:
+  - USDCAD
+  - USDCHF
+
+dxy:
+  symbol: DXY
+  # ICE USD Index weights (USDX). USDSEK omitted in FX0; weights renormalized.
+  weights:
+    EURUSD: -0.576
+    USDJPY: 0.136
+    GBPUSD: -0.119
+    USDCAD: 0.091
+    USDCHF: 0.036
+  constant: 50.14348112
+
+sessions:
+  # UTC boundaries for SCM session labels (FX1 engine).
+  asian:
+    start: "00:00"
+    end: "07:00"
+  london:
+    start: "07:00"
+    end: "16:00"
+  new_york:
+    start: "12:00"
+    end: "21:00"
+
+scm:
+  setup: london_continuation  # PARKED — see event_spike_fade (FX3 frozen recipe)
+  adr_lookback_days: 20
+  asian_range_max_adr_pct: 0.40
+  pre_london_max_adr_pct: 0.80
+  london_entry_window_minutes: 90
+  ny_fade_london_adr_pct: 0.50
+  event_wait_hours: 2
+  event_box_hours: 2
+  min_reward_risk: 1.5
+  confirm_score_threshold: 3
+  min_confirm_checks: 2
+  backtest_min_trades_per_window: 80
+  backtest_min_win_rate: 0.60
+  demo_min_win_rate: 0.55
+
+calendar:
+  watch_minutes_before: 30
+  watch_minutes_after: 60
+  # impact_tier: 3 = high (NFP, CPI, FOMC, ECB rate); 2 = medium (Retail, GDP, UK CPI)
+  high_impact_tiers: [3]
+  event_spike_tiers: [2, 3]
+  event_spike_currencies: [USD, EUR, GBP]
+
+# FX3 frozen — H11b-4 Event Spike Fade (2/3 OOS windows pass, Jun 2026)
+event_spike_fade:
+  enabled: true
+  pairs: [EURUSD, GBPUSD]  # H11c-3 frozen — 3/3 windows, ~6.8 trades/mo
+  timeframe: 1h
+  spike_wait_minutes: 30
+  spike_fade_minutes: 60
+  spike_retrace_pct: 0.50
+  min_spike_pips: 5.0
+  target_mode: retrace
+  flat_by_hour_utc: 21
+  risk_pct: 0.0075
+  lots: 0.01
+
+costs:
+  # Fusion Markets RAW — EURUSD typical; verify on broker before live.
+  spread_pips:
+    EURUSD: 0.1
+    GBPUSD: 0.2
+    USDJPY: 0.1
+    AUDUSD: 0.2
+    default: 0.3
+  commission_usd_per_lot_round_turn: 4.50
+  slippage_pips: 0.2
+  event_spread_multiplier: 2.5
+  pip_size:
+    EURUSD: 0.0001
+    GBPUSD: 0.0001
+    AUDUSD: 0.0001
+    USDJPY: 0.01
+    default: 0.0001
+  usd_per_pip_per_lot:
+    EURUSD: 10.0
+    GBPUSD: 10.0
+    AUDUSD: 10.0
+    USDJPY: 9.0
+    default: 10.0
+
+# FX4 — realistic execution overlay (demo paper + stress backtest).
+# OANDA quotes feed signals; fills use this model (Fusion-cost aligned).
+execution:
+  vps_latency_ms: 200          # fly.io round-trip budget
+  slippage_pips_min: 1.0
+  slippage_pips_max: 3.0
+  slippage_pips_mean: 1.5
+  requote_prob_base: 0.08
+  requote_prob_event: 0.25     # broker requotes during volatility
+  max_spread_pips_event: 3.0   # skip if modeled spread exceeds this
+  use_worst_case_slippage: false # true for stress backtest CLI
+
+# FX5–FX6 paper gate (event-only; ~6.8 trades/mo on H11c-3).
+demo:
+  equity_usd: 100.0
+  paper_days_min: 30
+  paper_days_max: 60
+  min_closed_trades: 15
+  sqlite_path: data/aegis.sqlite
+  # Demo market data: yahoo (default, open-source) | oanda | sqlite
+  data_source: yahoo
+
+research:
+  sqlite_path: data/forex_research.sqlite
+  timeframes: ["1h", "4h", "15m"]
+  download_start: "2015-01"
+  # Hourly: Yahoo (~730d) + optional HistData CSV import for older 1h bars.
+  # Daily: Yahoo from download_start (ADR / long-window context).
+  data_sources:
+    hourly: yahoo
+    hourly_deep: histdata_csv
+    daily: yahoo
+  dukascopy_point_decimals:
+    EURUSD: 5
+    GBPUSD: 5
+    USDJPY: 3
+    AUDUSD: 5
+    USDCAD: 5
+    USDCHF: 5

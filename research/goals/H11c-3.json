@@ -1,0 +1,15 @@
+{
+  "hypothesis_id": "H11c-3",
+  "title": "Event Spike Fade EURUSD+GBPUSD (frozen)",
+  "acceptance_criteria": "30-60d paper, >=15 closed trades, WR>=55%, expectancy CI overlaps backtest",
+  "falsifier": "2/3 OOS windows fail or demo WR drifts >10% below backtest mean",
+  "status": "frozen",
+  "evidence": [
+    "research/forex-h11c-verdict.md",
+    "config hash 6eaf09bf78b0d905",
+    "FX4 gate PASS",
+    "FX5 paper started Fly Jun 14 2026"
+  ],
+  "created_at": "2026-06-14T00:00:00+00:00",
+  "updated_at": "2026-06-14T00:00:00+00:00"
+}

@@ -18,6 +18,10 @@ class Venue(StrEnum):
     # Research data source only (P1.6 backtests need multi-year history that
     # trading venues do not serve). Never a trading venue.
     BINANCE = "binance"
+    # Forex research data (Dukascopy historical feed). Demo broker adapter in FX4.
+    FOREX = "forex"
+    # OANDA practice / paper executor (FX4 demo infra).
+    FOREX_DEMO = "forex_demo"
 
 
 class Side(StrEnum):

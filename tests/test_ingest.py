@@ -7,7 +7,7 @@ from aegis.core.interfaces import MarketData
 from aegis.core.models import Candle, Venue
 from aegis.core.timeframes import timeframe_ms
 from aegis.data import db
-from aegis.data.ingest import ingest_series
+from aegis.data.ingest import _cached_hl_symbols, _resolve_hl_universe, ingest_series
 
 H1 = timeframe_ms("1h")
 BASE = 1_700_000_400_000  # hour-aligned epoch ms
@@ -215,3 +215,53 @@ def test_gap_repair_refetches_missing_bars(tmp_path):
     )
     assert stats2.gaps_unfilled == 0
     assert db.candle_count_total(conn) == 24
+
+
+def test_cached_hl_symbols_ranks_by_volume(tmp_path):
+    conn = db.connect(tmp_path / "t.sqlite")
+    for symbol, vol in (("BTC", 100.0), ("ETH", 50.0), ("SOL", 200.0)):
+        ms = BASE
+        db.upsert_candles(
+            conn,
+            [
+                Candle(
+                    venue=Venue.HYPERLIQUID,
+                    symbol=symbol,
+                    timeframe="1h",
+                    open_time=datetime.fromtimestamp(ms / 1000, tz=UTC),
+                    open=1.0,
+                    high=1.0,
+                    low=1.0,
+                    close=1.0,
+                    volume=vol,
+                )
+            ],
+        )
+    assert _cached_hl_symbols(conn, 2) == ["SOL", "BTC"]
+
+
+class _UniverseFails(FakeVenue):
+    async def fetch_top_coins_by_volume(self, top_n: int) -> list[str]:
+        raise RuntimeError("502 Bad Gateway")
+
+
+def test_resolve_hl_universe_falls_back_to_cache(tmp_path):
+    conn = db.connect(tmp_path / "t.sqlite")
+    db.upsert_candles(
+        conn,
+        [
+            Candle(
+                venue=Venue.HYPERLIQUID,
+                symbol="ETH",
+                timeframe="1h",
+                open_time=datetime.fromtimestamp(BASE / 1000, tz=UTC),
+                open=1.0,
+                high=1.0,
+                low=1.0,
+                close=1.0,
+                volume=10.0,
+            )
+        ],
+    )
+    coins = asyncio.run(_resolve_hl_universe(_UniverseFails({}), conn, top_n=5))
+    assert coins == ["ETH"]

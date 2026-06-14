@@ -193,6 +193,19 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_soak_log_ts ON soak_log (ts_ms)",
+    """
+    CREATE TABLE IF NOT EXISTS economic_calendar (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        ts_ms       INTEGER NOT NULL,
+        currency    TEXT    NOT NULL,
+        impact_tier INTEGER NOT NULL,
+        event_code  TEXT    NOT NULL,
+        title       TEXT    NOT NULL,
+        UNIQUE (ts_ms, currency, event_code)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_econ_cal_ts ON economic_calendar (ts_ms)",
+    "CREATE INDEX IF NOT EXISTS idx_econ_cal_currency ON economic_calendar (currency, ts_ms)",
 )
 
 
@@ -753,3 +766,78 @@ def upsert_regime_label(
         (venue, symbol, timeframe, open_time_ms, regime, adx, ema_fast, ema_slow, bb_width),
     )
     conn.commit()
+
+
+# --- Economic calendar (forex FX0) -----------------------------------------
+
+
+@dataclass(frozen=True)
+class CalendarEvent:
+    ts_ms: int
+    currency: str
+    impact_tier: int
+    event_code: str
+    title: str
+
+
+def upsert_calendar_events(conn: sqlite3.Connection, events: Iterable[CalendarEvent]) -> int:
+    rows = [
+        (e.ts_ms, e.currency, e.impact_tier, e.event_code, e.title)
+        for e in events
+    ]
+    if not rows:
+        return 0
+    before = conn.execute("SELECT COUNT(*) FROM economic_calendar").fetchone()[0]
+    conn.executemany(
+        """
+        INSERT INTO economic_calendar (ts_ms, currency, impact_tier, event_code, title)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT (ts_ms, currency, event_code) DO UPDATE SET
+            impact_tier = excluded.impact_tier,
+            title = excluded.title
+        """,
+        rows,
+    )
+    conn.commit()
+    after = conn.execute("SELECT COUNT(*) FROM economic_calendar").fetchone()[0]
+    return after - before
+
+
+def count_calendar_events(
+    conn: sqlite3.Connection,
+    *,
+    since_ms: int | None = None,
+    until_ms: int | None = None,
+    impact_tier: int | None = None,
+) -> int:
+    clauses = ["1=1"]
+    params: list[int] = []
+    if since_ms is not None:
+        clauses.append("ts_ms >= ?")
+        params.append(since_ms)
+    if until_ms is not None:
+        clauses.append("ts_ms <= ?")
+        params.append(until_ms)
+    if impact_tier is not None:
+        clauses.append("impact_tier = ?")
+        params.append(impact_tier)
+    sql = f"SELECT COUNT(*) FROM economic_calendar WHERE {' AND '.join(clauses)}"
+    return int(conn.execute(sql, params).fetchone()[0])
+
+
+def candle_series_stats(
+    conn: sqlite3.Connection,
+    venue: str,
+    symbol: str,
+    timeframe: str,
+) -> tuple[int, int | None, int | None]:
+    """Return (count, min_open_ms, max_open_ms)."""
+    row = conn.execute(
+        """
+        SELECT COUNT(*), MIN(open_time_ms), MAX(open_time_ms)
+        FROM candles
+        WHERE venue = ? AND symbol = ? AND timeframe = ?
+        """,
+        (venue, symbol, timeframe),
+    ).fetchone()
+    return int(row[0]), row[1], row[2]

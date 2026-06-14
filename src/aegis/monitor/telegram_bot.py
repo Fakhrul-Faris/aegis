@@ -37,6 +37,8 @@ BOT_COMMANDS = [
     {"command": "health", "description": "Stack health check"},
     {"command": "progress", "description": "Milestones and project status"},
     {"command": "kpi", "description": "Weekly KPI snapshot"},
+    {"command": "forex", "description": "Forex demo scoreboard"},
+    {"command": "forex_kpi", "description": "Forex weekly KPI"},
     {"command": "help", "description": "Command list"},
 ]
 
@@ -51,6 +53,7 @@ MENU_KEYBOARD = {
             {"text": "Health", "callback_data": "health"},
         ],
         [{"text": "KPI", "callback_data": "kpi"}],
+        [{"text": "Forex", "callback_data": "forex"}],
     ]
 }
 
@@ -62,6 +65,8 @@ HELP_TEXT = (
     "/scanner — anomaly flags\n"
     "/health — doctor checks (no live Kraken ping)\n"
     "/kpi — weekly KPI for Section 5\n"
+    "/forex — forex demo scoreboard (event spike fade)\n"
+    "/forex_kpi — forex weekly KPI\n"
     "/help — this message\n\n"
     "Alerts still push automatically. This bot only answers queries."
 )
@@ -190,6 +195,34 @@ def build_scanner_report(cfg: AegisConfig) -> str:
         conn.close()
 
 
+def build_forex_report() -> str:
+    import time
+
+    from aegis.config_forex import load_forex_config
+    from aegis.monitor.forex_config_freeze import forex_config_hash
+    from aegis.monitor.forex_scorecard import build_forex_summary_text
+
+    cfg = load_forex_config()
+    conn = db.connect(cfg.demo.sqlite_path)
+    try:
+        text = build_forex_summary_text(conn, cfg, int(time.time() * 1000))
+        return f"{text}\n\nFreeze hash: {forex_config_hash(cfg)}"
+    finally:
+        conn.close()
+
+
+def build_forex_kpi_report() -> str:
+    from aegis.config_forex import load_forex_config
+    from aegis.monitor.forex_kpi import build_forex_weekly_kpi, format_forex_weekly_kpi
+
+    cfg = load_forex_config()
+    conn = db.connect(cfg.demo.sqlite_path)
+    try:
+        return format_forex_weekly_kpi(build_forex_weekly_kpi(conn, cfg))
+    finally:
+        conn.close()
+
+
 async def dispatch_command(cfg: AegisConfig, command: str) -> tuple[str, dict | None]:
     """Return message text and optional reply_markup."""
     if command in ("start", "help"):
@@ -217,6 +250,10 @@ async def dispatch_command(cfg: AegisConfig, command: str) -> tuple[str, dict | 
             conn.close()
     if command == "progress":
         return build_progress_report(cfg), None
+    if command == "forex":
+        return build_forex_report(), None
+    if command == "forex_kpi":
+        return build_forex_kpi_report(), None
     return f"Unknown command /{command}. Try /help.", None
 
 
