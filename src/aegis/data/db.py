@@ -712,13 +712,126 @@ def close_paper_position(
 
 
 def latest_paper_equity(conn: sqlite3.Connection, default: float = 1000.0) -> float:
+    return latest_equity_for_venue(conn, "paper", default=default)
+
+
+def latest_equity_for_venue(
+    conn: sqlite3.Connection,
+    venue: str,
+    *,
+    default: float,
+) -> float:
     row = conn.execute(
         """
         SELECT equity_usd FROM equity_snapshots
-        WHERE venue = 'paper' ORDER BY ts_ms DESC LIMIT 1
-        """
+        WHERE venue = ? ORDER BY ts_ms DESC LIMIT 1
+        """,
+        (venue,),
     ).fetchone()
     return float(row[0]) if row else default
+
+
+def open_strategy_positions(
+    conn: sqlite3.Connection,
+    *,
+    strategy: str,
+    venue: str,
+) -> list[PaperPositionRow]:
+    rows = conn.execute(
+        """
+        SELECT id, symbol, quantity, entry_price, risk_amount_usd, opened_ts_ms, context_json
+        FROM positions
+        WHERE strategy = ? AND venue = ? AND closed_ts_ms IS NULL
+        """,
+        (strategy, venue),
+    ).fetchall()
+    return [
+        PaperPositionRow(
+            id=row[0],
+            symbol=row[1],
+            quantity=row[2],
+            entry_price=row[3],
+            risk_amount_usd=row[4] or 0.0,
+            opened_ts_ms=row[5],
+            context=json.loads(row[6]) if row[6] else {},
+        )
+        for row in rows
+    ]
+
+
+def insert_strategy_position(
+    conn: sqlite3.Connection,
+    *,
+    strategy: str,
+    venue: str,
+    opened_ts_ms: int,
+    symbol: str,
+    quantity: float,
+    entry_price: float,
+    risk_amount_usd: float,
+    tier: str,
+    context: dict,
+) -> int:
+    cursor = conn.execute(
+        """
+        INSERT INTO positions
+            (opened_ts_ms, strategy, venue, symbol, side, quantity, entry_price,
+             risk_amount_usd, context_json)
+        VALUES (?, ?, ?, ?, 'long', ?, ?, ?, ?)
+        """,
+        (
+            opened_ts_ms,
+            strategy,
+            venue,
+            symbol,
+            quantity,
+            entry_price,
+            risk_amount_usd,
+            json.dumps(context | {"tier": tier}),
+        ),
+    )
+    conn.commit()
+    return int(cursor.lastrowid)
+
+
+def close_strategy_position(
+    conn: sqlite3.Connection,
+    position_id: int,
+    *,
+    closed_ts_ms: int,
+    exit_price: float,
+    realized_pnl: float,
+    r_multiple: float,
+    exit_reason: str,
+) -> None:
+    close_paper_position(
+        conn,
+        position_id,
+        closed_ts_ms=closed_ts_ms,
+        exit_price=exit_price,
+        realized_pnl=realized_pnl,
+        r_multiple=r_multiple,
+        exit_reason=exit_reason,
+    )
+
+
+def intraday_signal_exists(
+    conn: sqlite3.Connection,
+    *,
+    strategy: str,
+    symbol: str,
+    bar_open_ms: int,
+) -> bool:
+    row = conn.execute(
+        """
+        SELECT 1 FROM signals
+        WHERE strategy = ? AND symbol = ?
+          AND json_extract(context_json, '$.bar_open_ms') = ?
+        LIMIT 1
+        """,
+        (strategy, symbol, bar_open_ms),
+    ).fetchone()
+    return row is not None
 
 
 def signal_exists_for_bar(

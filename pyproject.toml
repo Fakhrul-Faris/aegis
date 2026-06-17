@@ -1,7 +1,7 @@
 [project]
 name = "aegis"
 version = "0.1.0"
-description = "Autonomous crypto trading system - staged two-strategy bot (pairs trading + swing momentum)"
+description = "Autonomous crypto trading system - staged multi-strategy bot (swing, intraday, forex)"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -58,6 +58,11 @@ aegis-forex-fx-r-check = "aegis.monitor.forex_fx_r_check:main_fx_r_check_cli"
 aegis-forex-recipe-list = "aegis.monitor.forex_fx_r_check:main_recipe_list_cli"
 aegis-forex-recipe-compare = "aegis.monitor.forex_fx_r_check:main_recipe_compare_cli"
 aegis-forex-research-goal = "aegis.monitor.forex_fx_r_check:main_research_goal_cli"
+aegis-intraday-ingest = "aegis.data.intraday_ingest:main"
+aegis-intraday-paper-run = "aegis.portfolio.intraday_paper_run:main"
+aegis-intraday-scorecard = "aegis.monitor.intraday_scorecard:main"
+aegis-intraday-kpi = "aegis.monitor.intraday_kpi:main"
+aegis-backtest-intraday = "aegis.backtest.intraday_run:main"
 
 [dependency-groups]
 dev = [

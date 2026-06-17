@@ -8,7 +8,7 @@ APP="${AEGIS_FLY_APP:-aegis-collector}"
 REMOTE_PATH="${AEGIS_REMOTE_DB:-/data/aegis.sqlite}"
 LOCAL="${AEGIS_SQLITE:-$REPO/aegis.sqlite}"
 STAGING="${LOCAL}.fly-sync"
-AGENTS=(com.aegis.ingest com.aegis.scanner com.aegis.portfolio com.aegis.kpi com.aegis.telegrambot)
+AGENTS=(com.aegis.ingest com.aegis.scanner com.aegis.portfolio com.aegis.intraday com.aegis.kpi com.aegis.telegrambot)
 
 cd "$REPO"
 

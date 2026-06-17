@@ -82,11 +82,36 @@ data:
   # serves ~5000 candles/series (~208d of 1h) - the ingester takes what exists.
   initial_backfill_days: 210
   hyperliquid_top_n: 50 # candle universe = top N perps by 24h volume
-  kraken_symbols: # Strategy A majors (paper phase); scanner widens coverage
+  # Strategy A paper + Kraken ingest universe (Jun 2026 expansion).
+  # Selected: CoinGecko top-300 ∩ Kraken USDT spot, liquid majors first.
+  # Universe change does NOT reset the paper config-freeze clock (only strategy
+  # params / risk tiers do — see monitor/config_freeze.py).
+  kraken_symbols:
     - "BTC/USDT"
     - "ETH/USDT"
-    - "SOL/USDT"
+    - "BNB/USDT"
     - "XRP/USDT"
+    - "SOL/USDT"
+    - "DOGE/USDT"
+    - "XMR/USDT"
+    - "ADA/USDT"
+    - "LINK/USDT"
+    - "TON/USDT"
+    - "BCH/USDT"
+    - "LTC/USDT"
+    - "SHIB/USDT"
+    - "AVAX/USDT"
+    - "CRO/USDT"
+    - "DOT/USDT"
+    - "ATOM/USDT"
+    - "KAS/USDT"
+    - "ALGO/USDT"
+    - "TRUMP/USDT"
+    - "VET/USDT"
+    - "PENGU/USDT"
+    - "XTZ/USDT"
+    - "MANA/USDT"
+    - "APE/USDT"
 
 monitoring:
   telegram_enabled: true

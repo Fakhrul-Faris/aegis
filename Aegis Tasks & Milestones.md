@@ -6,7 +6,11 @@
 
 How to use this document: work top to bottom, check tasks off as they complete, and never start a phase before the previous milestone's gate criteria are ALL met. Update the KPI log (Section 5) every Sunday. Gates are pass/fail - "almost" is fail.
 
-**Forex track (parallel, demo/paper only):** see `Aegis Forex Tasks & Milestones.md` — Session-Confirmed Momentum (SCM). Independent gates (FX0–FX8); nothing live until FX6.
+**Forex track (parallel, demo/paper only):** see `Aegis Forex Tasks & Milestones.md` — Event Spike Fade (H11c-3). Independent gates (FX0–FX8).
+
+**Intraday track (parallel, paper only):** see `Aegis Intraday Tasks & Milestones.md` — Strategy C day momentum + D scalp. Independent gates (ID0–ID5).
+
+**Fly.io (24/7):** `aegis-collector` (sin) — scanner, ingest, forex paper, intraday paper, Telegram `/commands`, HTML daily summary. `aegis-testnet-soak` — M4 soak (→ Jun 18). **Do not** run local `com.aegis.telegrambot` while Fly is polling.
 
 ---
 
@@ -16,11 +20,11 @@ How to use this document: work top to bottom, check tasks off as they complete, 
 | **ID** | **Milestone**                      | **Target**  | **Gate (all must hold)**                                                                                              | **Status** |
 | ------ | ---------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------------- | ---------- |
 | M0     | Dev environment ready              | Week 1      | Repo, config, secrets handling, CI test runner all working                                                            | ☑ Jun 11   |
-| M1     | Data layer live + scanner logging  | Week 3      | 72h uninterrupted collection; candles reconcile vs exchange UI; scanner flags in SQLite                               | ⏳ Jun 13   |
+| M1     | Data layer live + scanner logging  | Week 3      | 72h uninterrupted collection; candles reconcile vs exchange UI; scanner flags in SQLite                               | ☑ Jun 17   |
 | M2     | Math engine validated              | Week 6      | All unit tests pass incl. synthetic-data tests for every pillar (Concept §9)                                          | ☑ Jun 11   |
 | M3     | Backtest gates passed              | Week 8      | Walk-forward 2020-2026: ≥300 trades, expectancy 90% CI > 0 net of full cost model, max DD inside Monte Carlo envelope | ☐          |
-| M4     | Risk engine + testnet execution    | Week 12     | 20+ testnet spread trades; leg-2-miss drill passed; breaker drill passed                                              | ☐          |
-| M5     | **PAPER TRADING STARTS**           | Month 3     | M1-M4 complete; paper config frozen; review ritual scheduled                                                          | ☐          |
+| M4     | Risk engine + testnet execution    | Week 12     | 20+ testnet spread trades; leg-2-miss drill passed; breaker drill passed                                              | ⏳ Jun 18   |
+| M5     | **PAPER TRADING STARTS**           | Month 3     | M1-M4 complete; paper config frozen; review ritual scheduled                                                          | ⏳         |
 | M6     | Paper gates passed                 | Month 5     | ≥8 weeks, ≥40 trades, expectancy CI consistent with backtest, slippage within model                                   | ☐          |
 | M7     | Strategy B LIVE (RM400-500)        | Month 5-6   | M6 passed; capital deposited; kill-switch values configured from MC calibration                                       | ☐          |
 | M8     | RM2,000 equity + Strategy A review | Month 10-14 | Contributions on schedule; A's 3-gate promotion check (Concept §7) evaluated                                          | ☐          |
@@ -66,8 +70,8 @@ How to use this document: work top to bottom, check tasks off as they complete, 
 - [x] Telegram bot: error/crash alerts (live delivery confirmed). Daily heartbeat with collection stats at 16:00 UTC (midnight MYT) - first summary delivered Jun 10
 - [x] Daily summary job: candles/snapshots/flags in 24h (by variant), unfilled gap count, DB size, silent-scanner warning (`aegis-summary` + automatic in collector)
 
-**M0 gate check:** ☑ repo + config + tests run end-to-end (161 tests, CI green, testnet connectivity proven)
-**M1 gate check:** ⏳ 72h clock started Jun 10 ~16:00 UTC — gate check due **Jun 13 ~16:00 UTC** (`aegis-m1-check`). Do not restart Fly collector before pass. **Post-M1 deploy is automatic** (collector + GitHub Action Jun 13–15 17:30 UTC) once M1 passes — sets `FLY_API_TOKEN` on Fly: `fly secrets set FLY_API_TOKEN=$(fly auth token) -a aegis-collector`
+**M0 gate check:** ☑ repo + config + tests run end-to-end (167+ tests, CI green, testnet connectivity proven)
+**M1 gate check:** ☑ **PASS Jun 17** — `aegis-m1-check`: 166h snapshot span, 65 hourly batches, 2310 scanner flags, 7200 snapshots/24h. Fly collector redeployed Jun 17 (v10) with intraday + HTML Telegram summary.
 
 ## **Phase 1 - Strategy B Research & Math Engine (Weeks 3-8) → M2, M3**
 
@@ -168,9 +172,9 @@ How to use this document: work top to bottom, check tasks off as they complete, 
 - [x] 20+ full spread trades on Hyperliquid testnet through the complete pipeline (`aegis-testnet-campaign` — **20/20 Jun 11–12**, SOL/DOGE·ARB pairs, 87 fills in SQLite, flat after each cycle)
 - [x] Reconcile fills to SQLite after each spread (`spread_pipeline.reconcile_spread_fills`)
 - [ ] Reconcile funding payments + P&L vs testnet UI (manual spot-check)
-- [ ] 7-day unattended soak test: no crashes, no orphan orders, no unexplained state — **STARTED Jun 11 16:11 UTC** on Fly.io `aegis-testnet-soak` (sin); ends ~**Jun 18**. `aegis-testnet-soak` hourly health + spread every 6h; Telegram daily summary + milestone verdict on completion
+- [ ] 7-day unattended soak test: no crashes, no orphan orders, no unexplained state — **STARTED Jun 11 16:11 UTC** on Fly.io `aegis-testnet-soak` (sin); ends ~**Jun 18**. Day 6/7 — hourly health OK; spread anomalies logged (expected on testnet). Verdict pending.
 
-**M4 gate check:** ☑ 20+ testnet trades reconciled (87 fills, `aegis.sqlite`) ☑ leg-2 drill passed ☑ breaker drill CLI (`aegis-breaker-drill`) ☐ 7-day soak clean (clock running → Jun 18)
+**M4 gate check:** ☑ 20+ testnet trades reconciled (87 fills, `aegis.sqlite`) ☑ leg-2 drill passed ☑ breaker drill CLI (`aegis-breaker-drill`) ⏳ 7-day soak verdict **Jun 18**
 
 ## **Phase 3 - PAPER TRADING (Months 3-5) → M5, M6**
 
@@ -179,8 +183,15 @@ How to use this document: work top to bottom, check tasks off as they complete, 
 - [x] Paper mode: real market data, simulated fills at touch price + modeled slippage + real fee schedule (`execution/paper.py`, `aegis-portfolio` when `mode=paper`)
 - [x] Config freeze: parameters locked at backtest values; any change restarts the 8-week clock (`monitor/config_freeze.py`, `--reset-config-freeze`)
 - [x] Strategy A paper pipeline live in parallel (signals + simulated fills logged, zero capital implications)
-- [x] Daily summary includes paper equity + open positions (`aegis-summary` / Telegram)
-- [x] Weekly KPI auto-report (`aegis-kpi-report`, launchd Sunday 17:00 UTC)
+- [x] Daily summary includes paper equity + open positions (`aegis-summary` / Telegram) — **HTML formatted** Jun 17; includes swing + intraday + forex blocks
+- [x] Weekly KPI auto-report (`aegis-kpi-report`, launchd Sunday 17:00 UTC; forex KPI on Fly collector Sunday 17:00 UTC)
+
+### P3.1b Intraday track (parallel — see `Aegis Intraday Tasks & Milestones.md`)
+
+- [x] Strategy C engine + paper pipeline (`strategy/intraday_momentum.py`, `portfolio/intraday_pipeline.py`)
+- [x] Fly collector sidecar: 60s loop (`AEGIS_INTRADAY_ENABLED=1`, deployed Jun 17)
+- [x] Intraday scorecard in unified daily Telegram summary + `/intraday` command
+- [ ] ID4 Phase 1 proof (4 weeks ≥$50/wk + 5/7 win days)
 
 ### P3.2 Weekly review ritual (every Sunday, 30 min)
 
@@ -197,7 +208,7 @@ How to use this document: work top to bottom, check tasks off as they complete, 
 - [ ] Simulated slippage assumptions validated against observed spreads
 - [ ] Zero unexplained crashes or reconciliation breaks in final 4 weeks
 
-**M5 gate check:** ☐ paper mode running ☐ config frozen ☐ review ritual on calendar
+**M5 gate check:** ⏳ paper mode running (Fly + local launchd) ☐ config frozen verified ☐ review ritual on calendar (blocked on M4 soak Jun 18)
 **M6 gate check:** ☐ all P3.3 boxes ☐ written go-live decision memo (one page: what the data says)
 
 ## **Phase 4+ - Live Operations (tracked at milestone level)**
@@ -251,7 +262,7 @@ One row per week, every Sunday. (First rows during paper trading.)
 
 | **Week of** | **Mode** | **Equity (RM)** | **Trades (wk)** | **Trades (cum)** | **Win rate** | **Expectancy ±CI (R)** | **Max DD %** | **Slippage vs model** | **Scanner flags (cum)** | **Uptime %** | **Gates breached** | **Notes** |
 | ----------- | -------- | --------------- | --------------- | ---------------- | ------------ | ---------------------- | ------------ | --------------------- | ----------------------- | ------------ | ------------------ | --------- |
-|             |          |                 |                 |                  |              |                        |              |                       |                         |              |                    |           |
+| 2026-06-17 | paper | — | 0 | 0 | — | — | — | — | 2310 | Fly OK | 0 | M1 PASS; M4 soak d6/7; intraday ID2 live on Fly; Strategy A paper local launchd |
 
 
 **Standing rules for the log:**

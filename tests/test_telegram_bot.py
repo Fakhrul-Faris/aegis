@@ -30,19 +30,21 @@ def test_parse_command_strips_bot_suffix():
 
 
 def test_dispatch_help():
-    text, markup = asyncio.run(dispatch_command(_cfg(), "help"))
+    text, markup, parse_mode = asyncio.run(dispatch_command(_cfg(), "help"))
     assert "read-only" in text
     assert "/progress" in text
     assert markup is not None
+    assert parse_mode is None
 
 
 def test_dispatch_progress(tmp_path):
     cfg = _cfg(sqlite_path=str(tmp_path / "t.sqlite"))
     db.connect(tmp_path / "t.sqlite").close()
-    text, markup = asyncio.run(dispatch_command(cfg, "progress"))
+    text, markup, parse_mode = asyncio.run(dispatch_command(cfg, "progress"))
     assert "Aegis progression" in text
     assert "M4" in text
     assert markup is None
+    assert parse_mode is None
 
 
 def test_build_paper_report(tmp_path):

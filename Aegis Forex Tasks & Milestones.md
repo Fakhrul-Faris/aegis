@@ -44,7 +44,7 @@ How to use this document: work top to bottom. **Nothing goes live until FX6 pass
 | FX2b | Research sweep (4 forks) | Week 3+ | HistData, GBP/USD, tight filters, NY fade, event aftermath — **FAIL** `research/forex-scm-sweep-verdict.md` | ☑ Jun 14 |
 | FX3 | **Recipe frozen** | Week 4 | Event Spike Fade H11b-4; 2/3 OOS windows pass — `research/forex-fx3-verdict.md` | ☑ Jun 14 |
 | FX4 | Demo broker adapter | Week 5–6 | OANDA practice: ingest, paper executor, reconcile; edge framework doc | ☑ |
-| FX5 | **DEMO PAPER STARTS** | Week 7 | **Fly collector** runs forex + unified Telegram summary | ☐ fly deploy |
+| FX5 | **DEMO PAPER STARTS** | Week 7 | **Fly collector** runs forex + unified Telegram summary | ☑ Jun 17 |
 | FX6 | Demo paper gates | Week 15 | ≥8 weeks; ≥80 trades; expectancy CI overlaps backtest; **demo win rate ≥55% and within ±10% of backtest**; 3 demo resets with stable recipe; zero unexplained breaks in final 4 weeks | ☐ |
 | FX7 | Expand universe | Week 16+ | GBP/USD + USD/JPY same recipe; each pair must pass mini walk-forward before demo size | ☐ |
 | FX8 | Live micro (horizon) | After FX6 + crypto M6 | Real micro account; slippage reconciled 4 weeks; **only when both tracks have paper proof** | ☐ |
@@ -185,10 +185,9 @@ How to use this document: work top to bottom. **Nothing goes live until FX6 pass
 - [x] **Daily scoreboard** — collector `send_daily_summary` (crypto + forex, 16:00 UTC)
 - [x] **Weekly KPI** — Sunday 17:00 UTC in collector; `/forex_kpi` on Fly bot
 - [x] Launch doc: `research/forex-fx5-launch.md`
-- [ ] `fly deploy -a aegis-collector` (after M1 allows restart)
+- [x] `fly deploy -a aegis-collector` — **Jun 17** (v10: intraday sidecar + HTML summary + Telegram bot)
 
-**FX5 gate:** ☐ Fly collector startup mentions forex; `/forex` works; 30+ day paper on `/data` volume  
-*(Collector v7 on Fly; ingest fixed Jun 14 — paper clock day 0)*
+**FX5 gate:** ☑ Fly collector startup: forex paper cycle + calendar sidecar + `/forex`; intraday sidecar + `/intraday`; HTML daily summary. Paper clock day 3 (started Jun 14 ingest fix).
 
 ---
 
@@ -395,7 +394,7 @@ One row per week, every Sunday. First row starts at FX5.
 
 | **Week of** | **Mode** | **Equity (USD)** | **Trades (wk)** | **Trades (cum)** | **W / L (wk)** | **P&L (wk USD)** | **P&L (mo USD)** | **Win rate** | **Expectancy ±CI (R)** | **Max DD %** | **Slippage vs model** | **Alerts / trades** | **Uptime %** | **Gates breached** | **Notes** |
 | ----------- | -------- | ---------------- | --------------- | ---------------- | -------------- | ---------------- | ---------------- | ------------ | ---------------------- | ------------ | --------------------- | ------------------- | ------------ | ------------------ | --------- |
-|             | demo     |                  |                 |                  |                |                  |              |                        |              |                       |                     |              |                    |           |
+| 2026-06-17 | demo | — | — | — | — | — | — | — | — | — | — | — | Fly OK | 0 | FX5 PASS; collector v10 redeploy; forex + intraday + HTML Telegram live |
 
 
 **Standing rules:**
@@ -426,8 +425,8 @@ One row per week, every Sunday. First row starts at FX5.
 
 | | **Crypto (`Aegis Tasks & Milestones.md`)** | **Forex (this doc)** |
 | -- | ------------------------------------------ | -------------------- |
-| Strategy | Strategy A swing + anomaly scanner | SCM session momentum |
-| Status | M1 in progress; M3 Strategy B failed | FX0 not started |
+| Strategy | Strategy A swing + anomaly scanner; Strategy C intraday (parallel) | Event Spike Fade H11b-4 |
+| Status | M1 ☑ PASS Jun 17; M4 soak → Jun 18; M5 ⏳ | FX5 ☑ PASS Jun 17; FX6 paper clock running |
 | Capital | Paper → live RM400+ at M7 | Demo $100 → live micro at FX8 |
 | Shared | Risk engine, SQLite, Telegram, config freeze, walk-forward discipline | Same |
 | Not shared | Pairs/Kalman/Z-score, CoinGecko scanner | Session/calendar/DXY confirms |
@@ -455,11 +454,10 @@ One row per week, every Sunday. First row starts at FX5.
 
 # **9 Immediate Next Actions**
 
-1. ~~Complete crypto **M1 gate**~~ — ☑ PASS Jun 14 on Fly (`aegis-m1-check`).
-2. **FX5 paper clock** — passive; `/forex` weekly; Sunday KPI row.
-3. **FX-R smoke test (local):** `uv run aegis-forex-fx-r-check`
-4. **Fly deploy** (collector reorder: forex before crypto ingest + FX-R pipeline logging):
-   `fly deploy -a aegis-collector --remote-only --ha=false`
-5. For **pre-2024 hourly** history: HistData CSV via `aegis-forex-download --import-csv …`.
+1. ~~Complete crypto **M1 gate**~~ — ☑ PASS Jun 17 (`aegis-m1-check`: 166h span).
+2. ~~**Fly deploy** collector v10~~ — ☑ Jun 17 (forex + intraday + HTML Telegram). **Do not** run local `com.aegis.telegrambot`.
+3. **FX5 paper clock** — passive; `/forex` weekly; Sunday KPI row (first row Jun 17).
+4. **Crypto M4 soak verdict** — ~Jun 18 on `aegis-testnet-soak`.
+5. **FX-R smoke test (local):** `uv run aegis-forex-fx-r-check`
 
-*Last updated: June 2026*
+*Last updated: June 17, 2026*

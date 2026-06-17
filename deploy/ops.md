@@ -22,22 +22,39 @@ uv run aegis-doctor    # fix any issues before trusting the stack
 | `uv run aegis-kpi-report --print-only` | Sunday | fills Section 5 row |
 | Telegram `/status`, `/progress`, `/paper` | Anytime | Fly collector answers (24/7); Mac can sleep |
 | `uv run aegis-breaker-drill` | Once (M4 gate) | exit 0 |
-| `fly secrets set FLY_API_TOKEN=$(fly auth token) -a aegis-collector` | Once before Jun 13 | Post-M1 auto-deploy from collector |
+| `fly secrets set FLY_API_TOKEN=$(fly auth token) -a aegis-collector` | Once (done) | Post-M1 auto-deploy from collector |
 | `./deploy/post-m1-deploy.sh` | Manual backup after M1 | deploy if GitHub Action missed |
 | `fly logs -a aegis-testnet-soak` | During soak (→ Jun 18) | no crash loops |
+| `fly logs -a aegis-collector \| rg intraday` | After deploy | `intraday paper cycle` every ~60s |
 
 ## Fly.io (`aegis-collector`)
 
-Telegram secrets, command bot (`/forex`, `/status`), daily summary (crypto+forex),
-forex paper hourly, and calendar alerts all run on Fly. See `research/forex-fx5-launch.md`.
+**M1 PASS Jun 17.** Collector v10 (sin) runs 24/7:
+
+- Hourly: crypto ingest + scanner + forex paper (`forex paper cycle`)
+- 60s sidecar: intraday Strategy C paper (`intraday paper cycle`, `AEGIS_INTRADAY_ENABLED=1`)
+- 15m sidecar: forex calendar WATCH alerts
+- Telegram: command bot (`/status`, `/forex`, `/intraday`) + HTML daily summary (16:00 UTC)
+
+**Do not** run local `com.aegis.telegrambot` or `com.aegis.intraday` while Fly is polling (409 Conflict).
+
+See `research/forex-fx5-launch.md` and `Aegis Intraday Tasks & Milestones.md`.
 
 ```bash
+fly status -a aegis-collector
 fly secrets list -a aegis-collector
 fly logs -a aegis-collector
 fly ssh console -a aegis-collector -C "aegis-telegram-ping"
 ```
 
-After FX5 code deploy: `fly deploy -a aegis-collector` (respect M1 restart rules).
+## Fly.io (`aegis-testnet-soak`)
+
+M4 7-day soak started Jun 11; verdict ~Jun 18. Hourly health + spread checks.
+
+```bash
+fly status -a aegis-testnet-soak
+fly logs -a aegis-testnet-soak
+```
 
 ## Agents (macOS launchd)
 
@@ -45,7 +62,8 @@ After FX5 code deploy: `fly deploy -a aegis-collector` (respect M1 restart rules
 |-------|----------|------|
 | `com.aegis.ingest` | hourly :02 | Candle backfill + gap repair |
 | `com.aegis.scanner` | hourly :08 | CoinGecko anomaly flags |
-| `com.aegis.portfolio` | every 4h | Strategy A paper cycle |
+| `com.aegis.portfolio` | every 4h | Strategy A paper cycle (local; swing only) |
+| `com.aegis.intraday` | 60s loop | **On Fly** inside `aegis-collector` (do not run locally) |
 | `com.aegis.kpi` | Sun 17:00 UTC | Weekly KPI → Telegram + Section 5 |
 | `com.aegis.telegrambot` | — | **On Fly** inside `aegis-collector` (do not run locally) |
 
@@ -60,6 +78,23 @@ Paper cycle manual run:
 uv run aegis-portfolio              # one cycle
 uv run aegis-portfolio --loop 14400 # same as launchd agent
 ```
+
+## Strategy A universe expansion (Kraken pairs)
+
+Adding symbols to `data.kraken_symbols` is **not** part of the paper
+config-freeze hash — it does **not** restart the 8-week clock. Changing
+`strategy_a.*`, risk tiers, regime, or `scanner.volume_multiple` still does.
+
+After editing the list:
+
+```bash
+uv run aegis-ingest                    # backfill new pairs (210d × 1h + 4h)
+uv run aegis-reconcile --samples 10    # spot-check stored vs exchange (all venues)
+uv run aegis-portfolio                   # one paper cycle on widened universe
+```
+
+If Fly collector is primary: `fly deploy -a aegis-collector` so cloud ingest
+matches local config, then optionally `./deploy/sync-collector-db.sh`.
 
 ## Config freeze (P3.1)
 

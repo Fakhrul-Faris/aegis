@@ -16,7 +16,7 @@ The full specification lives in the repo root:
 
 - [`Aegis Concept.md`](Aegis%20Concept.md) v3.0 — architecture and math
 - [`Aegis Tasks & Milestones.md`](Aegis%20Tasks%20%26%20Milestones.md) — task list, gates, KPI log
-- [`studynote.md`](studynote.md) — flashcards and cheat sheet (non-finance readers)
+- [`Aegis Intraday Tasks & Milestones.md`](Aegis%20Intraday%20Tasks%20%26%20Milestones.md) — Strategy C/D day & scalp paper track
 
 ## Setup
 

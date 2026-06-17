@@ -43,6 +43,7 @@ class TelegramNotifier:
         *,
         chat_id: str | None = None,
         reply_markup: dict[str, Any] | None = None,
+        parse_mode: str | None = None,
     ) -> bool:
         """Send a message. Returns True on confirmed delivery; never raises."""
         if not self.enabled:
@@ -52,6 +53,8 @@ class TelegramNotifier:
             "chat_id": chat_id or self._chat_id,
             "text": text,
         }
+        if parse_mode is not None:
+            payload["parse_mode"] = parse_mode
         if reply_markup is not None:
             payload["reply_markup"] = reply_markup
         try:

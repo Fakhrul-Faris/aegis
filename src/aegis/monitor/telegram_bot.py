@@ -22,8 +22,9 @@ from aegis.monitor.daily_scorecard import build_daily_scorecard, format_daily_sc
 from aegis.monitor.doctor import format_doctor_report
 from aegis.monitor.kpi import build_weekly_kpi, format_weekly_kpi
 from aegis.monitor.progress import build_progress_report
-from aegis.monitor.summary import build_summary
+from aegis.monitor.summary import build_summary_html
 from aegis.monitor.telegram import TelegramNotifier, notifier_from_config
+from aegis.monitor.telegram_html import italic
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ BOT_COMMANDS = [
     {"command": "kpi", "description": "Weekly KPI snapshot"},
     {"command": "forex", "description": "Forex demo scoreboard"},
     {"command": "forex_kpi", "description": "Forex weekly KPI"},
+    {"command": "intraday", "description": "Intraday day-trade scoreboard"},
     {"command": "help", "description": "Command list"},
 ]
 
@@ -54,6 +56,7 @@ MENU_KEYBOARD = {
         ],
         [{"text": "KPI", "callback_data": "kpi"}],
         [{"text": "Forex", "callback_data": "forex"}],
+        [{"text": "Intraday", "callback_data": "intraday"}],
     ]
 }
 
@@ -67,6 +70,7 @@ HELP_TEXT = (
     "/kpi — weekly KPI for Section 5\n"
     "/forex — forex demo scoreboard (event spike fade)\n"
     "/forex_kpi — forex weekly KPI\n"
+    "/intraday — intraday day-trade paper (Strategy C)\n"
     "/help — this message\n\n"
     "Alerts still push automatically. This bot only answers queries."
 )
@@ -223,38 +227,49 @@ def build_forex_kpi_report() -> str:
         conn.close()
 
 
-async def dispatch_command(cfg: AegisConfig, command: str) -> tuple[str, dict | None]:
-    """Return message text and optional reply_markup."""
+def build_intraday_report() -> str:
+    from aegis.monitor.intraday_scorecard import build_intraday_section
+
+    return build_intraday_section(html=True) or "Intraday track not configured or disabled."
+
+
+async def dispatch_command(
+    cfg: AegisConfig, command: str
+) -> tuple[str, dict | None, str | None]:
+    """Return message text, optional reply_markup, and optional parse_mode."""
     if command in ("start", "help"):
-        return HELP_TEXT, MENU_KEYBOARD
+        return HELP_TEXT, MENU_KEYBOARD, None
     if command == "status":
         conn = db.connect(cfg.sqlite_path)
         try:
-            text = build_summary(conn)
+            text = build_summary_html(conn)
         finally:
             conn.close()
-        return f"{text}\n\nReply via buttons or /commands.", MENU_KEYBOARD
+        footer = italic("Reply via buttons or /commands.")
+        return f"{text}\n\n{footer}", MENU_KEYBOARD, "HTML"
     if command == "paper":
-        return build_paper_report(cfg), None
+        return build_paper_report(cfg), None, None
     if command == "scanner":
-        return build_scanner_report(cfg), None
+        return build_scanner_report(cfg), None, None
     if command == "health":
         text, ok = await format_doctor_report(cfg, check_kraken=False)
         prefix = "Health: OK" if ok else "Health: ISSUES"
-        return f"{prefix}\n\n{text}", None
+        return f"{prefix}\n\n{text}", None, None
     if command == "kpi":
         conn = db.connect(cfg.sqlite_path)
         try:
-            return format_weekly_kpi(build_weekly_kpi(conn)), None
+            return format_weekly_kpi(build_weekly_kpi(conn)), None, None
         finally:
             conn.close()
     if command == "progress":
-        return build_progress_report(cfg), None
+        return build_progress_report(cfg), None, None
     if command == "forex":
-        return build_forex_report(), None
+        return build_forex_report(), None, None
     if command == "forex_kpi":
-        return build_forex_kpi_report(), None
-    return f"Unknown command /{command}. Try /help.", None
+        return build_forex_kpi_report(), None, None
+    if command == "intraday":
+        return build_intraday_report(), None, "HTML"
+    return f"Unknown command /{command}. Try /help.", None, None
 
 
 async def handle_update(cfg: AegisConfig, notifier: TelegramNotifier, update: dict) -> int | None:
@@ -271,9 +286,11 @@ async def handle_update(cfg: AegisConfig, notifier: TelegramNotifier, update: di
             return update_id + 1
         data = callback.get("data") or ""
         query_id = callback.get("id", "")
-        text, markup = await dispatch_command(cfg, data)
+        text, markup, parse_mode = await dispatch_command(cfg, data)
         await notifier.answer_callback_query(query_id)
-        await notifier.send(text, chat_id=str(chat_id), reply_markup=markup)
+        await notifier.send(
+            text, chat_id=str(chat_id), reply_markup=markup, parse_mode=parse_mode
+        )
         return update_id + 1
 
     message = update.get("message") or update.get("edited_message")
@@ -295,8 +312,10 @@ async def handle_update(cfg: AegisConfig, notifier: TelegramNotifier, update: di
             )
         return update_id + 1
 
-    reply, markup = await dispatch_command(cfg, command)
-    await notifier.send(reply, chat_id=str(chat_id), reply_markup=markup)
+    reply, markup, parse_mode = await dispatch_command(cfg, command)
+    await notifier.send(
+        reply, chat_id=str(chat_id), reply_markup=markup, parse_mode=parse_mode
+    )
     return update_id + 1
 
 

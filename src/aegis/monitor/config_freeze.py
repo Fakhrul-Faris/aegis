@@ -12,7 +12,7 @@ from aegis.config import AegisConfig, ConfigError
 FREEZE_SCOPE = "strategy_a_paper"
 
 
-def _paper_blob(cfg: AegisConfig) -> str:
+def _paper_payload(cfg: AegisConfig, *, include_risk_limits: bool) -> dict:
     payload = {
         "strategy_a": {
             "ema_fast": cfg.strategy_a.ema_fast,
@@ -28,14 +28,6 @@ def _paper_blob(cfg: AegisConfig) -> str:
             "mid": cfg.risk.tiers.mid,
             "aggressive": cfg.risk.tiers.aggressive,
         },
-        "risk_limits": {
-            "max_concurrent_risk_r": cfg.risk.max_concurrent_risk_r,
-            "slippage_gate_pct": cfg.risk.slippage_gate_pct,
-            "correlation_trigger": cfg.risk.correlation_trigger,
-            "correlation_release": cfg.risk.correlation_release,
-            "correlation_min_observations": cfg.risk.correlation_min_observations,
-            "daily_breaker_multiple": cfg.risk.daily_breaker_multiple,
-        },
         "regime": {
             "adx_trend_threshold": cfg.regime.adx_trend_threshold,
             "adx_sideways_threshold": cfg.regime.adx_sideways_threshold,
@@ -43,11 +35,33 @@ def _paper_blob(cfg: AegisConfig) -> str:
         },
         "scanner_volume_multiple": cfg.scanner.volume_multiple,
     }
-    return json.dumps(payload, sort_keys=True)
+    if include_risk_limits:
+        payload["risk_limits"] = {
+            "max_concurrent_risk_r": cfg.risk.max_concurrent_risk_r,
+            "slippage_gate_pct": cfg.risk.slippage_gate_pct,
+            "correlation_trigger": cfg.risk.correlation_trigger,
+            "correlation_release": cfg.risk.correlation_release,
+            "correlation_min_observations": cfg.risk.correlation_min_observations,
+            "daily_breaker_multiple": cfg.risk.daily_breaker_multiple,
+        }
+    return payload
+
+
+def _paper_blob(cfg: AegisConfig) -> str:
+    return json.dumps(_paper_payload(cfg, include_risk_limits=True), sort_keys=True)
+
+
+def _legacy_paper_blob(cfg: AegisConfig) -> str:
+    """Pre-Jun-2026 freeze format (no risk_limits block)."""
+    return json.dumps(_paper_payload(cfg, include_risk_limits=False), sort_keys=True)
 
 
 def config_hash(cfg: AegisConfig) -> str:
     return hashlib.sha256(_paper_blob(cfg).encode()).hexdigest()[:16]
+
+
+def legacy_config_hash(cfg: AegisConfig) -> str:
+    return hashlib.sha256(_legacy_paper_blob(cfg).encode()).hexdigest()[:16]
 
 
 def _ensure_table(conn: sqlite3.Connection) -> None:
@@ -88,6 +102,16 @@ def verify_or_freeze_paper_config(
         return
 
     if row[0] != digest:
+        # Jun 2026: risk_limits were added to the freeze blob after early paper
+        # runs. Same strategy params, new hash — migrate in place (keep clock).
+        if row[0] == legacy_config_hash(cfg):
+            conn.execute(
+                "UPDATE config_freeze SET config_hash = ? WHERE scope = ?",
+                (digest, FREEZE_SCOPE),
+            )
+            conn.commit()
+            return
+
         raise ConfigError(
             "Paper config changed since freeze. Any parameter change restarts the "
             "8-week paper clock (Concept §17). Re-freeze explicitly with "

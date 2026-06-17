@@ -3,6 +3,8 @@
 A silent collector is indistinguishable from a dead one; this summary makes
 absence of data loud. Sent to Telegram once a day by the collector daemon,
 or manually via ``aegis-summary``.
+
+Telegram delivery uses HTML formatting (parse_mode=HTML).
 """
 
 from __future__ import annotations
@@ -16,8 +18,23 @@ from datetime import UTC, datetime
 from aegis.config import AegisConfig, load_config
 from aegis.data import db
 from aegis.log import setup_logging
-from aegis.monitor.daily_scorecard import build_daily_scorecard, format_daily_scorecard
+from aegis.monitor.daily_scorecard import (
+    DailyScorecard,
+    build_daily_scorecard,
+    format_daily_scorecard,
+    format_win_record,
+)
 from aegis.monitor.forex_scorecard import build_forex_section
+from aegis.monitor.intraday_scorecard import build_intraday_section
+from aegis.monitor.telegram_html import (
+    bold,
+    esc,
+    format_pnl_html,
+    italic,
+    pnl_emoji,
+    pre_block,
+    status_emoji,
+)
 
 DAY_MS = 86_400_000
 
@@ -62,6 +79,40 @@ def _collection_lines(conn: sqlite3.Connection, now_ms: int) -> list[str]:
     ]
 
 
+def _swing_section_html(card: DailyScorecard, conn: sqlite3.Connection, now_ms: int) -> str:
+    body = "\n".join(
+        [
+            f"{pnl_emoji(card.pnl_today_usd)} Today P&L   {format_pnl_html(card.pnl_today_usd)}",
+            f"📋 Closed      {format_pnl_html(card.closed_pnl_today_usd)}",
+            f"🎲 Trades      {format_win_record(card.wins_today, card.losses_today)}",
+            f"💼 Equity      ${card.equity_now_usd:,.2f}",
+            "",
+            f"{pnl_emoji(card.pnl_week_usd)} Week P&L     {format_pnl_html(card.pnl_week_usd)}",
+            f"📈 All-time    {format_pnl_html(card.all_time_pnl_usd)}",
+            "",
+            f"{status_emoji(card.scanner_ok)} Scanner     "
+            f"{'OK' if card.scanner_ok else 'DOWN'} ({card.snapshots_24h} snaps)",
+            f"{status_emoji(card.gaps_ok)} Data gaps   "
+            f"{'OK' if card.gaps_ok else f'{card.total_gaps} gaps'}",
+        ]
+    )
+    return f"{bold('🏄 Swing Paper (A)')}\n{pre_block(body)}"
+
+
+def _collection_section_html(conn: sqlite3.Connection, now_ms: int) -> str:
+    lines = _collection_lines(conn, now_ms)
+    body = "\n".join(line for line in lines if not line.startswith("---"))
+    return f"{bold('📊 Data Collection (24h)')}\n{pre_block(body)}"
+
+
+def _forex_section_html(now_ms: int) -> str | None:
+    plain = build_forex_section(now_ms=now_ms)
+    if not plain:
+        return None
+    body = plain.replace("Aegis Forex —", "").strip()
+    return f"{bold('💱 Forex Demo')}\n{pre_block(body)}"
+
+
 def build_summary(conn: sqlite3.Connection, now_ms: int | None = None) -> str:
     now = now_ms if now_ms is not None else int(time.time() * 1000)
 
@@ -71,6 +122,10 @@ def build_summary(conn: sqlite3.Connection, now_ms: int | None = None) -> str:
     if not card.scanner_ok:
         lines.append("")
         lines.append("WARNING: zero snapshots in 24h — scanner down?")
+
+    intraday_block = build_intraday_section(now_ms=now, html=False)
+    if intraday_block:
+        lines.extend(["", "=" * 40, "", intraday_block])
 
     forex_block = build_forex_section(now_ms=now)
     if forex_block:
@@ -82,18 +137,48 @@ def build_summary(conn: sqlite3.Connection, now_ms: int | None = None) -> str:
     return "\n".join(lines)
 
 
+def build_summary_html(conn: sqlite3.Connection, now_ms: int | None = None) -> str:
+    now = now_ms if now_ms is not None else int(time.time() * 1000)
+    card = build_daily_scorecard(conn, now)
+    dt = datetime.fromtimestamp(now / 1000, tz=UTC)
+    day_label = dt.strftime("%A %b %d, %Y")
+    stamp = dt.strftime("%H:%M UTC")
+
+    parts = [
+        f"{bold('🛡️ Aegis Daily')} — {esc(day_label)}",
+        "",
+        _swing_section_html(card, conn, now),
+    ]
+
+    if not card.scanner_ok:
+        parts.extend(["", f"{bold('⚠️ Alert')} Scanner down — zero snapshots in 24h"])
+
+    intraday_block = build_intraday_section(now_ms=now, html=True)
+    if intraday_block:
+        parts.extend(["", intraday_block])
+
+    parts.extend(["", _collection_section_html(conn, now)])
+
+    forex_block = _forex_section_html(now)
+    if forex_block:
+        parts.extend(["", forex_block])
+
+    parts.extend(["", italic(f"🕐 Report {stamp}")])
+    return "\n".join(parts)
+
+
 async def send_daily_summary(cfg: AegisConfig) -> str:
     from aegis.monitor.telegram import notifier_from_config
 
     conn = db.connect(cfg.sqlite_path)
     try:
-        text = build_summary(conn)
+        text = build_summary_html(conn)
     finally:
         conn.close()
 
     notifier = notifier_from_config(cfg)
     try:
-        await notifier.send(text)
+        await notifier.send(text, parse_mode="HTML")
     finally:
         await notifier.close()
     return text
@@ -103,17 +188,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Aegis daily summary")
     parser.add_argument("--config", default="config/config.yaml")
     parser.add_argument("--print-only", action="store_true", help="stdout only, no Telegram")
+    parser.add_argument("--plain", action="store_true", help="plain text instead of HTML")
     args = parser.parse_args()
     cfg = load_config(args.config)
     setup_logging(cfg.monitoring.log_dir, cfg.monitoring.log_level)
-    if args.print_only:
-        conn = db.connect(cfg.sqlite_path)
-        try:
-            print(build_summary(conn))
-        finally:
-            conn.close()
-    else:
-        print(asyncio.run(send_daily_summary(cfg)))
+    conn = db.connect(cfg.sqlite_path)
+    try:
+        if args.print_only:
+            builder = build_summary if args.plain else build_summary_html
+            print(builder(conn))
+        else:
+            print(asyncio.run(send_daily_summary(cfg)))
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":

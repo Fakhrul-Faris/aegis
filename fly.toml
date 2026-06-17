@@ -1,6 +1,5 @@
-# Fly.io worker app: collector + Telegram command bot (/status, /paper, /forex, …).
-# Forex demo paper (Yahoo ingest + event fade) runs inside this process on Fly.
-# Deploy:    fly deploy   (wait until M1 72h gate passes — restart voids the clock)
+# Fly.io worker app: collector + Telegram bot + forex + intraday paper.
+# Deploy:    fly deploy -a aegis-collector
 # Secrets:   fly secrets set TELEGRAM_BOT_TOKEN=... TELEGRAM_CHAT_ID=...
 # Volume:    fly volumes create aegis_data --size 1   (SQLite + logs live here)
 

@@ -61,7 +61,13 @@ def _check_launchd() -> list[str]:
     except (FileNotFoundError, subprocess.SubprocessError):
         return ["launchctl unavailable (not macOS?)"]
     notes: list[str] = []
-    for label in ("com.aegis.ingest", "com.aegis.scanner", "com.aegis.portfolio", "com.aegis.telegrambot"):
+    for label in (
+        "com.aegis.ingest",
+        "com.aegis.scanner",
+        "com.aegis.portfolio",
+        "com.aegis.intraday",
+        "com.aegis.telegrambot",
+    ):
         if label in out:
             line = next(l for l in out.splitlines() if label in l)
             parts = line.split()

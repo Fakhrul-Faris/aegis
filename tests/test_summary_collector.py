@@ -50,6 +50,17 @@ def test_summary_reports_counts(tmp_path):
     assert "WARNING" not in text
 
 
+def test_build_summary_html_includes_intraday(tmp_path):
+    from aegis.monitor.summary import build_summary_html
+
+    conn = db.connect(tmp_path / "t.sqlite")
+    html = build_summary_html(conn, now_ms=NOW)
+    assert "🛡️" in html
+    assert "Intraday Paper" in html or "⚡" in html
+    assert "<pre>" in html
+    conn.close()
+
+
 def test_summary_warns_on_silent_scanner(tmp_path):
     conn = db.connect(tmp_path / "t.sqlite")
     text = build_summary(conn, now_ms=NOW)

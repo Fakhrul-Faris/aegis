@@ -11,7 +11,7 @@ mkdir -p "$AGENTS_DIR" "$REPO/logs"
 
 # Telegram /commands run on Fly inside aegis-collector — do not load telegrambot
 # locally unless you are offline-testing (only one getUpdates poller per token).
-for name in ingest scanner portfolio kpi; do
+for name in ingest scanner portfolio kpi intraday; do
     label="com.aegis.$name"
     plist="$AGENTS_DIR/$label.plist"
     sed -e "s|__REPO__|$REPO|g" -e "s|__UV__|$UV|g" \

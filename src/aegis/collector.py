@@ -115,6 +115,33 @@ async def run_cycle(cfg: AegisConfig) -> None:
     await _guarded(cfg, "ingest", ingest_once(cfg))
 
 
+async def _intraday_sidecar(cfg: AegisConfig) -> None:
+    """Strategy C paper loop — 60s on Fly (``AEGIS_INTRADAY_ENABLED=1``)."""
+    from aegis.config_intraday import load_intraday_config
+    from aegis.monitor.intraday_collector import run_intraday_paper_if_enabled
+    from aegis.monitor.telegram import notify_crash
+
+    if not intraday_collector_enabled():
+        return
+    icfg = load_intraday_config()
+    interval = max(30, icfg.data.loop_seconds)
+    try:
+        while True:
+            await run_intraday_paper_if_enabled()
+            await asyncio.sleep(interval)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        logger.exception("intraday sidecar crashed")
+        await notify_crash(cfg, "intraday-paper", exc)
+
+
+def intraday_collector_enabled() -> bool:
+    from aegis.monitor.intraday_collector import intraday_collector_enabled as _enabled
+
+    return _enabled()
+
+
 async def _telegram_bot_sidecar(cfg: AegisConfig) -> None:
     """Long-poll command bot — runs on Fly alongside collector (no Mac required)."""
     from aegis.monitor.telegram import notify_crash
@@ -144,17 +171,23 @@ async def collector_main(cfg: AegisConfig, once: bool = False) -> None:
         startup += " Telegram /commands active on this host."
     if forex_collector_enabled():
         startup += " Forex event-fade paper active."
+    if intraday_collector_enabled():
+        startup += " Intraday Strategy C paper active."
     await notifier.send(startup)
     await notifier.close()
 
     bot_task: asyncio.Task | None = None
     forex_cal_task: asyncio.Task | None = None
+    intraday_task: asyncio.Task | None = None
     if command_bot_enabled(cfg) and not once:
         bot_task = asyncio.create_task(_telegram_bot_sidecar(cfg), name="telegram-bot")
         logger.info("telegram command bot started alongside collector")
     if forex_collector_enabled() and not once:
         forex_cal_task = asyncio.create_task(_forex_calendar_sidecar(cfg), name="forex-calendar")
         logger.info("forex calendar alerts sidecar started (15m)")
+    if intraday_collector_enabled() and not once:
+        intraday_task = asyncio.create_task(_intraday_sidecar(cfg), name="intraday-paper")
+        logger.info("intraday paper sidecar started (60s)")
 
     state = _read_collector_state(cfg)
     last_summary_day = state.get("last_summary_day")
@@ -187,7 +220,7 @@ async def collector_main(cfg: AegisConfig, once: bool = False) -> None:
             logger.info("collector sleeping", extra={"seconds": round(delay)})
             await asyncio.sleep(delay)
     finally:
-        for task in (bot_task, forex_cal_task):
+        for task in (bot_task, forex_cal_task, intraday_task):
             if task is not None:
                 task.cancel()
                 try:

@@ -6,7 +6,11 @@ import pytest
 
 from aegis.config import AegisConfig, ConfigError, load_config
 from aegis.data import db
-from aegis.monitor.config_freeze import config_hash, verify_or_freeze_paper_config
+from aegis.monitor.config_freeze import (
+    config_hash,
+    legacy_config_hash,
+    verify_or_freeze_paper_config,
+)
 from aegis.monitor.m1_check import _collection_span_hours, _snapshot_continuity
 
 
@@ -40,6 +44,28 @@ def test_config_freeze_reset_allows_change(tmp_path):
 def test_config_hash_stable():
     cfg = _cfg()
     assert config_hash(cfg) == config_hash(_cfg())
+
+
+def test_config_freeze_migrates_legacy_hash(tmp_path):
+    """Early paper freezes used a shorter blob (no risk_limits)."""
+    conn = db.connect(tmp_path / "t.sqlite")
+    cfg = _cfg()
+    legacy = legacy_config_hash(cfg)
+    assert legacy != config_hash(cfg)
+
+    verify_or_freeze_paper_config(conn, cfg, reset=True)
+    conn.execute(
+        "UPDATE config_freeze SET config_hash = ?, frozen_at_ms = ? WHERE scope = 'strategy_a_paper'",
+        (legacy, 1_700_000_000_000),
+    )
+    conn.commit()
+
+    verify_or_freeze_paper_config(conn, cfg)
+    row = conn.execute(
+        "SELECT config_hash, frozen_at_ms FROM config_freeze WHERE scope = 'strategy_a_paper'"
+    ).fetchone()
+    assert row[0] == config_hash(cfg)
+    assert row[1] == 1_700_000_000_000
 
 
 def test_m1_collection_span_hours(tmp_path):

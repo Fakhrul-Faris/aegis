@@ -1,0 +1,67 @@
+# Aegis Intraday — Strategy C (day) + D (scalp) paper track.
+# Companion to config/config.yaml (crypto swing) and config/forex.yaml.
+# Secrets stay in .env.
+
+active_strategy: momentum_day
+
+demo:
+  equity_usd: 400.0
+  paper_weeks_min: 6
+  weekly_profit_target_usd: 50.0
+  weekly_win_days_min: 5
+  proof_weeks_consecutive: 4
+  min_closed_trades_cum: 80
+  max_weekly_drawdown_pct: 0.08
+  sqlite_path: data/aegis.sqlite
+
+# Strategy C — scanner + 4h regime + 15m higher-high breakout (H-C1)
+momentum_day:
+  enabled: true
+  symbols:
+    - BTC
+    - ETH
+    - SOL
+    - XRP
+    - DOGE
+    - LINK
+    - AVAX
+    - ADA
+    - BNB
+    - ARB
+  signal_timeframe: 15m
+  regime_timeframe: 4h
+  scanner_required: true
+  breakout_lookback_bars: 4
+  stop_loss_pct: 0.004
+  take_profit_pct: 0.008
+  risk_pct: 0.0075
+  flat_by_hour_utc: 21
+  max_open_positions: 3
+  max_trades_per_day: 8
+  daily_profit_cap_r: 3.0
+  daily_loss_cap_r: 2.0
+
+# Strategy D — 5m pullback (Phase 1b; disabled until C logs 2 weeks)
+scalp:
+  enabled: false
+  signal_timeframe: 5m
+  risk_pct: 0.005
+  stop_loss_pct: 0.003
+  take_profit_pct: 0.003
+  max_trades_per_day: 6
+
+costs:
+  maker_fee: 0.00015
+  taker_fee: 0.00045
+  slippage_pct: 0.0008
+  min_order_usd: 10.0
+
+data:
+  timeframes: ["15m"]
+  initial_backfill_days: 30
+  loop_seconds: 60
+
+research:
+  sqlite_path: data/intraday_research.sqlite
+  volume_spike_multiple: 3.0
+  backtest_min_trades: 80
