@@ -24,8 +24,8 @@ MAINNET_URL = "https://api.hyperliquid.xyz"
 TESTNET_URL = "https://api.hyperliquid-testnet.xyz"
 
 # /info is weight-limited; modest concurrency is deliberate politeness.
-_MAX_CONCURRENT_REQUESTS = 3
-_RETRIES = 5  # backoff 1s -> 16s; initial backfills burst hard enough to 429
+_MAX_CONCURRENT_REQUESTS = 2
+_RETRIES = 7  # backoff 1s -> 64s; ingest bursts can still 429 without throttling
 
 
 class HyperliquidMarketData(MarketData):
@@ -52,6 +52,10 @@ class HyperliquidMarketData(MarketData):
                     )
                     if not retryable or attempt == _RETRIES - 1:
                         raise
+                    if isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code == 429:
+                        retry_after = exc.response.headers.get("Retry-After")
+                        if retry_after and retry_after.isdigit():
+                            delay = max(delay, float(retry_after))
                     logger.warning(
                         "hyperliquid info retry",
                         extra={"type": payload.get("type"), "attempt": attempt + 1},

@@ -59,7 +59,7 @@ costs:
 data:
   timeframes: ["15m"]
   initial_backfill_days: 30
-  loop_seconds: 60
+  loop_seconds: 60  # paper tick; HL ingest throttled to 900s in intraday_paper_run
 
 research:
   sqlite_path: data/intraday_research.sqlite

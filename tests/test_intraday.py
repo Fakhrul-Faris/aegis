@@ -77,6 +77,94 @@ def test_intraday_config_freeze_roundtrip(tmp_path):
     conn.close()
 
 
+def test_load_candles_recent_tail_order(tmp_path):
+    import time
+    from datetime import UTC, datetime
+
+    from aegis.core.models import Candle, Venue
+    from aegis.data import db
+
+    conn = db.connect(tmp_path / "t.sqlite")
+    try:
+        base = int(time.time() * 1000) - 1_000_000
+        for i in range(5):
+            db.upsert_candles(
+                conn,
+                [
+                    Candle(
+                        venue=Venue.HYPERLIQUID,
+                        symbol="BTC",
+                        timeframe="15m",
+                        open_time=datetime.fromtimestamp(
+                            (base + i * 900_000) / 1000, tz=UTC
+                        ),
+                        open=1.0,
+                        high=2.0,
+                        low=0.5,
+                        close=1.5 + i,
+                        volume=10.0,
+                    )
+                ],
+            )
+        recent = db.load_candles_recent(conn, Venue.HYPERLIQUID, "BTC", "15m", 3)
+        assert len(recent) == 3
+        assert recent[0].close == 3.5
+        assert recent[-1].close == 5.5
+    finally:
+        conn.close()
+
+
+def test_sqlite_intraday_market_data_uses_cached_close(tmp_path):
+    import asyncio
+    import time
+    from datetime import UTC, datetime
+
+    from aegis.core.models import Candle, Venue
+    from aegis.data import db
+    from aegis.execution.intraday_market_data import SqliteIntradayMarketData
+
+    conn = db.connect(tmp_path / "t.sqlite")
+    try:
+        db.upsert_candles(
+            conn,
+            [
+                Candle(
+                    venue=Venue.HYPERLIQUID,
+                    symbol="ETH",
+                    timeframe="15m",
+                    open_time=datetime.fromtimestamp(time.time(), tz=UTC),
+                    open=100.0,
+                    high=101.0,
+                    low=99.0,
+                    close=100.5,
+                    volume=1.0,
+                )
+            ],
+        )
+        md = SqliteIntradayMarketData(conn)
+        bid, ask = asyncio.run(md.fetch_top_of_book("ETH"))
+        assert bid < 100.5 < ask
+    finally:
+        conn.close()
+
+
+def test_ingest_due_respects_interval(tmp_path):
+    import json
+    import time
+
+    from aegis.portfolio.intraday_paper_run import _ingest_state_path, _mark_ingest_done, ingest_due
+
+    db_path = tmp_path / "data/aegis.sqlite"
+    db_path.parent.mkdir(parents=True)
+    assert ingest_due(str(db_path)) is True
+    _mark_ingest_done(str(db_path))
+    assert ingest_due(str(db_path)) is False
+    state = json.loads(_ingest_state_path(str(db_path)).read_text())
+    state["last_ingest_unix"] = time.time() - 901
+    _ingest_state_path(str(db_path)).write_text(json.dumps(state))
+    assert ingest_due(str(db_path)) is True
+
+
 def test_intraday_scorecard_empty(tmp_path):
     import time
 

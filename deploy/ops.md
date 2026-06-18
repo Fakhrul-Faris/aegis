@@ -32,7 +32,7 @@ uv run aegis-doctor    # fix any issues before trusting the stack
 **M1 PASS Jun 17.** Collector v10 (sin) runs 24/7:
 
 - Hourly: crypto ingest + scanner + forex paper (`forex paper cycle`)
-- 60s sidecar: intraday Strategy C paper (`intraday paper cycle`, `AEGIS_INTRADAY_ENABLED=1`)
+- 60s sidecar: intraday Strategy C paper (`intraday paper cycle`, `AEGIS_INTRADAY_ENABLED=1`) — reads SQLite candles; HL ingest max once per 15m
 - 15m sidecar: forex calendar WATCH alerts
 - Telegram: command bot (`/status`, `/forex`, `/intraday`) + HTML daily summary (16:00 UTC)
 

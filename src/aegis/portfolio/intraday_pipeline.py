@@ -15,7 +15,7 @@ from aegis.config import AegisConfig
 from aegis.config_intraday import IntradayConfig
 from aegis.core.models import OrderRequest, OrderType, Side, Venue
 from aegis.data import db
-from aegis.execution import build_market_data
+from aegis.execution.intraday_market_data import SqliteIntradayMarketData
 from aegis.execution.intraday_paper import INTRADAY_PAPER_VENUE, STRATEGY_C, IntradayPaperExecutor
 from aegis.risk.sizing import size_position
 from aegis.strategy.intraday_momentum import (
@@ -318,22 +318,22 @@ async def run_intraday_cycle(
 
     now_ms = int(time.time() * 1000)
     marks: dict[str, float] = {}
-    md = build_market_data(Venue.HYPERLIQUID, testnet=False)
-    try:
-        for symbol in icfg.momentum_day.symbols:
-            await _check_exits(icfg, acfg, conn, md, symbol)
+    md = SqliteIntradayMarketData(conn)
+    for symbol in icfg.momentum_day.symbols:
+        await _check_exits(icfg, acfg, conn, md, symbol)
 
-        equity = _intraday_equity(conn, icfg, marks)
+    equity = _intraday_equity(conn, icfg, marks)
 
-        for symbol in icfg.momentum_day.symbols:
-            await _try_entry(icfg, acfg, conn, md, symbol, equity, now_ms)
-            try:
-                _, ask = await md.fetch_top_of_book(symbol)
-                marks[symbol] = ask
-            except Exception:
-                pass
-    finally:
-        await md.close()
+    for symbol in icfg.momentum_day.symbols:
+        await _try_entry(icfg, acfg, conn, md, symbol, equity, now_ms)
+        try:
+            candles = db.load_candles_recent(
+                conn, Venue.HYPERLIQUID, symbol, icfg.momentum_day.signal_timeframe, 1
+            )
+            if candles:
+                marks[symbol] = candles[-1].close
+        except Exception:
+            pass
 
     equity = _intraday_equity(conn, icfg, marks)
     db.insert_equity_snapshot(

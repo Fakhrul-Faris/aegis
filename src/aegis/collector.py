@@ -125,15 +125,23 @@ async def _intraday_sidecar(cfg: AegisConfig) -> None:
         return
     icfg = load_intraday_config()
     interval = max(30, icfg.data.loop_seconds)
-    try:
-        while True:
+    failures = 0
+    while True:
+        try:
             await run_intraday_paper_if_enabled()
-            await asyncio.sleep(interval)
-    except asyncio.CancelledError:
-        raise
-    except Exception as exc:
-        logger.exception("intraday sidecar crashed")
-        await notify_crash(cfg, "intraday-paper", exc)
+            failures = 0
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            failures += 1
+            logger.exception(
+                "intraday paper cycle failed",
+                extra={"consecutive_failures": failures},
+            )
+            # Alert on first failure and every 10th — avoid Telegram spam on sustained 429s.
+            if failures == 1 or failures % 10 == 0:
+                await notify_crash(cfg, "intraday-paper", exc)
+        await asyncio.sleep(interval)
 
 
 def intraday_collector_enabled() -> bool:

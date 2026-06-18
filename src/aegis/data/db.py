@@ -295,6 +295,40 @@ def first_candle_open_ms(
     return row[0]
 
 
+def load_candles_recent(
+    conn: sqlite3.Connection,
+    venue: Venue,
+    symbol: str,
+    timeframe: str,
+    limit: int,
+) -> list[Candle]:
+    """Most recent ``limit`` closed bars, oldest first."""
+    rows = conn.execute(
+        """
+        SELECT open_time_ms, open, high, low, close, volume FROM candles
+        WHERE venue = ? AND symbol = ? AND timeframe = ?
+        ORDER BY open_time_ms DESC
+        LIMIT ?
+        """,
+        (venue.value, symbol, timeframe, limit),
+    ).fetchall()
+    rows.reverse()
+    return [
+        Candle(
+            venue=venue,
+            symbol=symbol,
+            timeframe=timeframe,
+            open_time=datetime.fromtimestamp(row[0] / 1000, tz=UTC),
+            open=row[1],
+            high=row[2],
+            low=row[3],
+            close=row[4],
+            volume=row[5],
+        )
+        for row in rows
+    ]
+
+
 def load_candles(
     conn: sqlite3.Connection,
     venue: Venue,
