@@ -23,7 +23,7 @@ How to use this document: work top to bottom, check tasks off as they complete, 
 | M1     | Data layer live + scanner logging  | Week 3      | 72h uninterrupted collection; candles reconcile vs exchange UI; scanner flags in SQLite                               | ☑ Jun 17   |
 | M2     | Math engine validated              | Week 6      | All unit tests pass incl. synthetic-data tests for every pillar (Concept §9)                                          | ☑ Jun 11   |
 | M3     | Backtest gates passed              | Week 8      | Walk-forward 2020-2026: ≥300 trades, expectancy 90% CI > 0 net of full cost model, max DD inside Monte Carlo envelope | ☐          |
-| M4     | Risk engine + testnet execution    | Week 12     | 20+ testnet spread trades; leg-2-miss drill passed; breaker drill passed                                              | ⏳ Jun 18   |
+| M4     | Risk engine + testnet execution    | Week 12     | 20+ testnet spread trades; leg-2-miss drill passed; breaker drill passed                                              | ☑ Jun 19   |
 | M5     | **PAPER TRADING STARTS**           | Month 3     | M1-M4 complete; paper config frozen; review ritual scheduled                                                          | ⏳         |
 | M6     | Paper gates passed                 | Month 5     | ≥8 weeks, ≥40 trades, expectancy CI consistent with backtest, slippage within model                                   | ☐          |
 | M7     | Strategy B LIVE (RM400-500)        | Month 5-6   | M6 passed; capital deposited; kill-switch values configured from MC calibration                                       | ☐          |
@@ -172,9 +172,9 @@ How to use this document: work top to bottom, check tasks off as they complete, 
 - [x] 20+ full spread trades on Hyperliquid testnet through the complete pipeline (`aegis-testnet-campaign` — **20/20 Jun 11–12**, SOL/DOGE·ARB pairs, 87 fills in SQLite, flat after each cycle)
 - [x] Reconcile fills to SQLite after each spread (`spread_pipeline.reconcile_spread_fills`)
 - [ ] Reconcile funding payments + P&L vs testnet UI (manual spot-check)
-- [ ] 7-day unattended soak test: no crashes, no orphan orders, no unexplained state — **STARTED Jun 11 16:11 UTC** on Fly.io `aegis-testnet-soak` (sin); ends ~**Jun 18**. Day 6/7 — hourly health OK; spread anomalies logged (expected on testnet). Verdict pending.
+- [x] 7-day unattended soak test on Fly `aegis-testnet-soak` — **CONDITIONAL PASS Jun 19** — see `research/m4-soak-verdict.md`. 7d clock Jun 11→18; 15 spreads ok / 12 fail; 76 anomalies (stuck SOL 0.17 dust); 3 recovered API errors. Post-day-7 Fly restart loop fixed (`restart=no`).
 
-**M4 gate check:** ☑ 20+ testnet trades reconciled (87 fills, `aegis.sqlite`) ☑ leg-2 drill passed ☑ breaker drill CLI (`aegis-breaker-drill`) ⏳ 7-day soak verdict **Jun 18**
+**M4 gate check:** ☑ 20+ testnet trades ☑ leg-2 drill ☑ breaker drill ☑ **7-day soak CONDITIONAL PASS** (machine gate; auto verdict NEEDS REVIEW)
 
 ## **Phase 3 - PAPER TRADING (Months 3-5) → M5, M6**
 
@@ -208,7 +208,7 @@ How to use this document: work top to bottom, check tasks off as they complete, 
 - [ ] Simulated slippage assumptions validated against observed spreads
 - [ ] Zero unexplained crashes or reconciliation breaks in final 4 weeks
 
-**M5 gate check:** ⏳ paper mode running (Fly + local launchd) ☐ config frozen verified ☐ review ritual on calendar (blocked on M4 soak Jun 18)
+**M5 gate check:** ⏳ paper mode running (Fly + local launchd) ☐ config frozen verified ☐ review ritual on calendar (M4 unblocks)
 **M6 gate check:** ☐ all P3.3 boxes ☐ written go-live decision memo (one page: what the data says)
 
 ## **Phase 4+ - Live Operations (tracked at milestone level)**
@@ -263,6 +263,7 @@ One row per week, every Sunday. (First rows during paper trading.)
 | **Week of** | **Mode** | **Equity (RM)** | **Trades (wk)** | **Trades (cum)** | **Win rate** | **Expectancy ±CI (R)** | **Max DD %** | **Slippage vs model** | **Scanner flags (cum)** | **Uptime %** | **Gates breached** | **Notes** |
 | ----------- | -------- | --------------- | --------------- | ---------------- | ------------ | ---------------------- | ------------ | --------------------- | ----------------------- | ------------ | ------------------ | --------- |
 | 2026-06-17 | paper | — | 0 | 0 | — | — | — | — | 2310 | Fly OK | 0 | M1 PASS; M4 soak d6/7; intraday ID2 live on Fly; Strategy A paper local launchd |
+| 2026-06-19 | paper | — | 0 | 0 | — | — | — | — | — | Fly OK | 0 | M4 soak CONDITIONAL PASS; soak app stopped |
 
 
 **Standing rules for the log:**

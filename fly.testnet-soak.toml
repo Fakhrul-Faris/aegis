@@ -21,4 +21,4 @@ primary_region = "sin"
   memory = "512mb"
 
 [[restart]]
-  policy = "always"
+  policy = "no"

@@ -59,7 +59,10 @@ def _soak_verdict_icon(cfg: AegisConfig, elapsed_days: float) -> tuple[str, str]
         passed = bool(verdict.get("passed"))
         spreads_fail = verdict.get("spreads_fail", 0)
         anomalies = verdict.get("anomalies", 0)
+        human = verdict.get("human_review")
         suffix = f" · spreads_fail={spreads_fail} anomalies={anomalies}"
+        if human:
+            suffix += f" · {human}"
         return (ICON_PASS if passed else ICON_FAIL), suffix
     except (json.JSONDecodeError, OSError):
         return ICON_WAIT, " · soak_verdict.json unreadable"

@@ -49,11 +49,11 @@ fly ssh console -a aegis-collector -C "aegis-telegram-ping"
 
 ## Fly.io (`aegis-testnet-soak`)
 
-M4 7-day soak started Jun 11; verdict ~Jun 18. Hourly health + spread checks.
+M4 7-day soak **complete Jun 19** (CONDITIONAL PASS). Machine stopped; `restart=no`.
 
 ```bash
 fly status -a aegis-testnet-soak
-fly logs -a aegis-testnet-soak
+uv run aegis-soak-review   # after syncing DB from Fly volume
 ```
 
 ## Agents (macOS launchd)
@@ -124,11 +124,12 @@ uv run aegis-m1-check --skip-reconcile   # if offline
 
 Mark M1 in Tasks & Milestones when all checks pass.
 
-## Testnet soak (M4, running → Jun 18)
+## Testnet soak (M4) — **COMPLETE Jun 19**
 
-- Fly app: `aegis-testnet-soak` (sin)
-- **Do not** run local soak or manual testnet trades on the soak wallet
-- Verdict Jun 18: clean logs, no orphan orders, Telegram summaries received
+- Fly app: `aegis-testnet-soak` (sin) — **stopped**, `restart=no`
+- Verdict: **CONDITIONAL PASS** — `research/m4-soak-verdict.md`
+- Review CLI: `uv run aegis-soak-review --db data/aegis.sqlite`
+- **Do not** restart soak without a new 7-day clock
 
 ## Sync collector DB
 

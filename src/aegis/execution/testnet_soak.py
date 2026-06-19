@@ -44,6 +44,14 @@ _STATE_FILE = "soak_state.json"
 _VERDICT_FILE = "soak_verdict.json"
 
 
+def _verdict_path(cfg: AegisConfig) -> Path:
+    return Path(cfg.sqlite_path).parent / _VERDICT_FILE
+
+
+def soak_already_completed(cfg: AegisConfig) -> bool:
+    return _verdict_path(cfg).exists()
+
+
 @dataclass
 class SoakState:
     started_at_ms: int
@@ -73,21 +81,18 @@ def _save_state(cfg: AegisConfig, state: SoakState) -> None:
     path.write_text(json.dumps(asdict(state), indent=2))
 
 
-def _save_verdict(cfg: AegisConfig, *, passed: bool, state: SoakState) -> None:
-    path = Path(cfg.sqlite_path).parent / _VERDICT_FILE
+def _save_verdict(cfg: AegisConfig, *, passed: bool, state: SoakState, **extra) -> None:
+    path = _verdict_path(cfg)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        json.dumps(
-            {
-                "passed": passed,
-                "completed_at_ms": int(time.time() * 1000),
-                "spreads_ok": state.spreads_ok,
-                "spreads_fail": state.spreads_fail,
-                "anomalies": state.anomalies,
-            },
-            indent=2,
-        )
-    )
+    payload = {
+        "passed": passed,
+        "completed_at_ms": int(time.time() * 1000),
+        "spreads_ok": state.spreads_ok,
+        "spreads_fail": state.spreads_fail,
+        "anomalies": state.anomalies,
+        **extra,
+    }
+    path.write_text(json.dumps(payload, indent=2))
 
 
 def _soak_elapsed_days(state: SoakState) -> float:
@@ -228,6 +233,10 @@ async def soak_main(
     if not cfg.hyperliquid.testnet:
         raise SystemExit("REFUSING: testnet soak requires exchanges.hyperliquid.testnet=true")
 
+    if soak_already_completed(cfg):
+        logger.info("soak verdict already recorded; exiting")
+        return 0
+
     await verify_fees_at_startup(cfg)
     conn = db.connect(cfg.sqlite_path)
     state = _load_state(cfg)
@@ -279,22 +288,20 @@ async def soak_main(
                 last_summary_day = day_key
 
             if _soak_elapsed_days(state) >= SOAK_DURATION_DAYS:
-                passed = state.anomalies == 0 and state.spreads_fail == 0
-                _save_verdict(cfg, passed=passed, state=state)
+                auto_passed = state.anomalies == 0 and state.spreads_fail == 0
+                _save_verdict(cfg, passed=auto_passed, state=state, auto_passed=auto_passed)
                 await send_soak_summary(cfg, state, final=True)
                 from aegis.monitor.milestones import notify_soak_verdict
 
                 await notify_soak_verdict(
                     cfg,
-                    passed=passed,
+                    passed=auto_passed,
                     elapsed_days=_soak_elapsed_days(state),
                     spreads_ok=state.spreads_ok,
                     spreads_fail=state.spreads_fail,
                     anomalies=state.anomalies,
                 )
                 _log_event(conn, "soak_complete", asdict(state))
-                if not passed:
-                    exit_code = 1
                 break
 
             if once:

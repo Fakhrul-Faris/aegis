@@ -36,3 +36,4 @@ research/scratch/
 .DS_Store
 .idea/
 .vscode/
+data/intraday_ingest_state.json
