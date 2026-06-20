@@ -24,7 +24,7 @@ How to use this document: work top to bottom, check tasks off as they complete, 
 | M2     | Math engine validated              | Week 6      | All unit tests pass incl. synthetic-data tests for every pillar (Concept §9)                                          | ☑ Jun 11   |
 | M3     | Backtest gates passed              | Week 8      | Walk-forward 2020-2026: ≥300 trades, expectancy 90% CI > 0 net of full cost model, max DD inside Monte Carlo envelope | ☐          |
 | M4     | Risk engine + testnet execution    | Week 12     | 20+ testnet spread trades; leg-2-miss drill passed; breaker drill passed                                              | ☑ Jun 19   |
-| M5     | **PAPER TRADING STARTS**           | Month 3     | M1-M4 complete; paper config frozen; review ritual scheduled                                                          | ⏳         |
+| M5     | **PAPER TRADING STARTS**           | Month 3     | M1-M4 complete; paper config frozen; review ritual scheduled                                                          | ☑ Jun 20   |
 | M6     | Paper gates passed                 | Month 5     | ≥8 weeks, ≥40 trades, expectancy CI consistent with backtest, slippage within model                                   | ☐          |
 | M7     | Strategy B LIVE (RM400-500)        | Month 5-6   | M6 passed; capital deposited; kill-switch values configured from MC calibration                                       | ☐          |
 | M8     | RM2,000 equity + Strategy A review | Month 10-14 | Contributions on schedule; A's 3-gate promotion check (Concept §7) evaluated                                          | ☐          |
@@ -208,8 +208,8 @@ How to use this document: work top to bottom, check tasks off as they complete, 
 - [ ] Simulated slippage assumptions validated against observed spreads
 - [ ] Zero unexplained crashes or reconciliation breaks in final 4 weeks
 
-**M5 gate check:** ⏳ paper mode running (Fly + local launchd) ☐ config frozen verified ☐ review ritual on calendar (M4 unblocks)
-**M6 gate check:** ☐ all P3.3 boxes ☐ written go-live decision memo (one page: what the data says)
+**M5 gate check:** ☑ M1–M4 complete ☑ config frozen `d1a1093da6e69fa7` since Jun 12 ☑ Sunday ritual → `deploy/sunday-review.md` ☑ `aegis-m5-check`
+**M6 gate check:** ☐ all P3.3 boxes ☐ written go-live decision memo (one page: what the data says) — **8-week clock from Jun 12 freeze → ~Aug 7**
 
 ## **Phase 4+ - Live Operations (tracked at milestone level)**
 

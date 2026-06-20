@@ -21,7 +21,8 @@ uv run aegis-doctor    # fix any issues before trusting the stack
 | `uv run aegis-summary` | Daily (or read Telegram) | snapshots > 0, flags accumulating |
 | `uv run aegis-kpi-report --print-only` | Sunday | fills Section 5 row |
 | Telegram `/status`, `/progress`, `/paper` | Anytime | Fly collector answers (24/7); Mac can sleep |
-| `uv run aegis-breaker-drill` | Once (M4 gate) | exit 0 |
+| `uv run aegis-m5-check` | After M4 | exit 0, freeze OK |
+| `deploy/sunday-review.md` | Every Sun 17:00 UTC | KPI + reconciliation checklist |
 | `fly secrets set FLY_API_TOKEN=$(fly auth token) -a aegis-collector` | Once (done) | Post-M1 auto-deploy from collector |
 | `./deploy/post-m1-deploy.sh` | Manual backup after M1 | deploy if GitHub Action missed |
 | `fly logs -a aegis-testnet-soak` | During soak (→ Jun 18) | no crash loops |
