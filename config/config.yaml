@@ -112,6 +112,13 @@ data:
     - "XTZ/USDT"
     - "MANA/USDT"
     - "APE/USDT"
+    # Jun 2026: price_up_5 anomaly overlap (freeze-safe — symbols only).
+    # Kraken lists these as USD spot, not USDT.
+    - "JUP/USD"
+    - "SAND/USD"
+    - "WLD/USD"
+    - "EIGEN/USD"
+    - "AXS/USD"
 
 monitoring:
   telegram_enabled: true

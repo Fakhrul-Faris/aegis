@@ -27,12 +27,13 @@ uv run aegis-doctor    # fix any issues before trusting the stack
 | `./deploy/post-m1-deploy.sh` | Manual backup after M1 | deploy if GitHub Action missed |
 | `fly logs -a aegis-testnet-soak` | During soak (→ Jun 18) | no crash loops |
 | `fly logs -a aegis-collector \| rg intraday` | After deploy | `intraday paper cycle` every ~60s |
+| `fly logs -a aegis-collector \| rg "strategy A paper"` | After deploy | hourly after ingest |
 
 ## Fly.io (`aegis-collector`)
 
 **M1 PASS Jun 17.** Collector v10 (sin) runs 24/7:
 
-- Hourly: crypto ingest + scanner + forex paper (`forex paper cycle`)
+- Hourly: crypto ingest + scanner + **Strategy A swing paper** (`portfolio-paper` / `strategy A paper cycle`) + forex paper (`forex paper cycle`)
 - 60s sidecar: intraday Strategy C paper (`intraday paper cycle`, `AEGIS_INTRADAY_ENABLED=1`) — reads SQLite candles; HL ingest max once per 15m
 - 15m sidecar: forex calendar WATCH alerts
 - Telegram: command bot (`/status`, `/forex`, `/intraday`) + HTML daily summary (16:00 UTC)
@@ -63,7 +64,7 @@ uv run aegis-soak-review   # after syncing DB from Fly volume
 |-------|----------|------|
 | `com.aegis.ingest` | hourly :02 | Candle backfill + gap repair |
 | `com.aegis.scanner` | hourly :08 | CoinGecko anomaly flags |
-| `com.aegis.portfolio` | every 4h | Strategy A paper cycle (local; swing only) |
+| `com.aegis.portfolio` | every 4h | Strategy A paper (optional local; **on Fly** hourly when `AEGIS_PORTFOLIO_ENABLED=1`) |
 | `com.aegis.intraday` | 60s loop | **On Fly** inside `aegis-collector` (do not run locally) |
 | `com.aegis.kpi` | Sun 17:00 UTC | Weekly KPI → Telegram + Section 5 |
 | `com.aegis.telegrambot` | — | **On Fly** inside `aegis-collector` (do not run locally) |

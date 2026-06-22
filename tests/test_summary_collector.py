@@ -121,3 +121,20 @@ def test_summary_due_once_per_day():
     next_day = datetime(2026, 6, 11, 16, 30, tzinfo=UTC).timestamp()
     due4, day4 = summary_due(next_day, hour, last_sent_day="2026-06-10")
     assert due4 and day4 == "2026-06-11"
+
+
+def test_portfolio_collector_enabled(monkeypatch):
+    from aegis.monitor.portfolio_collector import portfolio_collector_enabled
+
+    monkeypatch.delenv("AEGIS_PORTFOLIO_ENABLED", raising=False)
+    monkeypatch.delenv("AEGIS_MODE", raising=False)
+    assert portfolio_collector_enabled() is True
+
+    monkeypatch.setenv("AEGIS_PORTFOLIO_ENABLED", "0")
+    assert portfolio_collector_enabled() is False
+
+    monkeypatch.setenv("AEGIS_PORTFOLIO_ENABLED", "1")
+    monkeypatch.setenv("AEGIS_MODE", "testnet")
+    assert portfolio_collector_enabled() is False
+
+    monkeypatch.delenv("AEGIS_MODE", raising=False)

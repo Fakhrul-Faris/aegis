@@ -113,6 +113,9 @@ async def run_cycle(cfg: AegisConfig) -> None:
     await _guarded(cfg, "scanner", scan_once(cfg))
     await _guarded(cfg, "forex-paper", run_forex_paper_if_enabled())
     await _guarded(cfg, "ingest", ingest_once(cfg))
+    from aegis.monitor.portfolio_collector import run_portfolio_paper_if_enabled
+
+    await _guarded(cfg, "portfolio-paper", run_portfolio_paper_if_enabled())
 
 
 async def _intraday_sidecar(cfg: AegisConfig) -> None:
@@ -167,11 +170,15 @@ async def _telegram_bot_sidecar(cfg: AegisConfig) -> None:
 
 
 async def collector_main(cfg: AegisConfig, once: bool = False) -> None:
+    from aegis.execution.fees import verify_fees_at_startup
     from aegis.monitor.forex_collector import forex_collector_enabled, send_forex_weekly_kpi_if_enabled
+    from aegis.monitor.portfolio_collector import portfolio_collector_enabled
     from aegis.monitor.post_m1_deploy import maybe_post_m1_deploy
     from aegis.monitor.summary import send_daily_summary
     from aegis.monitor.telegram import notifier_from_config
     from aegis.monitor.telegram_bot import command_bot_enabled
+
+    await verify_fees_at_startup(cfg)
 
     notifier = notifier_from_config(cfg)
     startup = "Aegis collector online - hourly scan+ingest active."
@@ -181,6 +188,8 @@ async def collector_main(cfg: AegisConfig, once: bool = False) -> None:
         startup += " Forex event-fade paper active."
     if intraday_collector_enabled():
         startup += " Intraday Strategy C paper active."
+    if portfolio_collector_enabled():
+        startup += " Strategy A swing paper active."
     await notifier.send(startup)
     await notifier.close()
 
