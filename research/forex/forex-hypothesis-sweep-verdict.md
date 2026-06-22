@@ -10,4 +10,4 @@ Best: **H16 USDJPY Tokyo-London LER** — 0/3 windows, WR 18.4%, +1.286R
 ## Verdict
 
 **No hypothesis passed.** Forex remains in parking lot.
-See `research/forex-hypothesis-sweep-report.md` for full matrix.
+See `research/forex/forex-hypothesis-sweep-report.md` for full matrix.

@@ -162,7 +162,7 @@ def main() -> None:
         if _print_window(label, start, end, result, cfg, breakdown):
             passes += 1
 
-    out = Path("research/forex-realistic-verdict.md")
+    out = Path("research/forex/forex-realistic-verdict.md")
     out.write_text(
         "\n".join(
             [

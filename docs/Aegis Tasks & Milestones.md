@@ -2,13 +2,13 @@
 
 **Aegis - Development Task List & Milestone Tracker**
 
-*Version 1.0 · June 2026 · Companion to Aegis Concept.md v3.0*
+*Version 1.0 · June 2026 · Companion to `Aegis Concept.md` v3.0*
 
 How to use this document: work top to bottom, check tasks off as they complete, and never start a phase before the previous milestone's gate criteria are ALL met. Update the KPI log (Section 5) every Sunday. Gates are pass/fail - "almost" is fail.
 
-**Forex track (parallel, demo/paper only):** see `Aegis Forex Tasks & Milestones.md` — Event Spike Fade (H11c-3). Independent gates (FX0–FX8).
+**Forex track (parallel, demo/paper only):** see `docs/Aegis Forex Tasks & Milestones.md` — Event Spike Fade (H11c-3). Independent gates (FX0–FX8).
 
-**Intraday track (parallel, paper only):** see `Aegis Intraday Tasks & Milestones.md` — Strategy C day momentum + D scalp. Independent gates (ID0–ID5).
+**Intraday track (parallel, paper only):** see `docs/Aegis Intraday Tasks & Milestones.md` — Strategy C day momentum + D scalp. Independent gates (ID0–ID5).
 
 **Fly.io (24/7):** `aegis-collector` (sin) — scanner, ingest, forex paper, intraday paper, Telegram `/commands`, HTML daily summary. `aegis-testnet-soak` — M4 soak (→ Jun 18). **Do not** run local `com.aegis.telegrambot` while Fly is polling.
 
@@ -172,7 +172,7 @@ How to use this document: work top to bottom, check tasks off as they complete, 
 - [x] 20+ full spread trades on Hyperliquid testnet through the complete pipeline (`aegis-testnet-campaign` — **20/20 Jun 11–12**, SOL/DOGE·ARB pairs, 87 fills in SQLite, flat after each cycle)
 - [x] Reconcile fills to SQLite after each spread (`spread_pipeline.reconcile_spread_fills`)
 - [ ] Reconcile funding payments + P&L vs testnet UI (manual spot-check)
-- [x] 7-day unattended soak test on Fly `aegis-testnet-soak` — **CONDITIONAL PASS Jun 19** — see `research/m4-soak-verdict.md`. 7d clock Jun 11→18; 15 spreads ok / 12 fail; 76 anomalies (stuck SOL 0.17 dust); 3 recovered API errors. Post-day-7 Fly restart loop fixed (`restart=no`).
+- [x] 7-day unattended soak test on Fly `aegis-testnet-soak` — **CONDITIONAL PASS Jun 19** — see `research/crypto/m4-soak-verdict.md`. 7d clock Jun 11→18; 15 spreads ok / 12 fail; 76 anomalies (stuck SOL 0.17 dust); 3 recovered API errors. Post-day-7 Fly restart loop fixed (`restart=no`).
 
 **M4 gate check:** ☑ 20+ testnet trades ☑ leg-2 drill ☑ breaker drill ☑ **7-day soak CONDITIONAL PASS** (machine gate; auto verdict NEEDS REVIEW)
 
@@ -186,7 +186,7 @@ How to use this document: work top to bottom, check tasks off as they complete, 
 - [x] Daily summary includes paper equity + open positions (`aegis-summary` / Telegram) — **HTML formatted** Jun 17; includes swing + intraday + forex blocks
 - [x] Weekly KPI auto-report (`aegis-kpi-report`, launchd Sunday 17:00 UTC; forex KPI on Fly collector Sunday 17:00 UTC)
 
-### P3.1b Intraday track (parallel — see `Aegis Intraday Tasks & Milestones.md`)
+### P3.1b Intraday track (parallel — see `docs/Aegis Intraday Tasks & Milestones.md`)
 
 - [x] Strategy C engine + paper pipeline (`strategy/intraday_momentum.py`, `portfolio/intraday_pipeline.py`)
 - [x] Fly collector sidecar: 60s loop (`AEGIS_INTRADAY_ENABLED=1`, deployed Jun 17)
@@ -276,7 +276,7 @@ One row per week, every Sunday. (First rows during paper trading.)
 
 # **6 Risks to This Plan (execution-level)**
 
-- **Scope creep:** the single biggest threat. Strategy A improvements, ML ideas, and dashboards are all FORBIDDEN before M6. Write ideas in a `parking-lot.md`, do not build them.
+- **Scope creep:** the single biggest threat. Strategy A improvements, ML ideas, and dashboards are all FORBIDDEN before M6. Write ideas in a `docs/parking-lot.md`, do not build them.
 - **Gate erosion:** "7 of 8 weeks is basically 8" is how accounts die. Gates are binary.
 - **Silent data rot:** the scanner log only has value if it runs continuously - its gap-free operation is a weekly KPI from week 1.
 - **Parameter fiddling during paper:** any parameter change restarts the 8-week paper clock. This rule has no exceptions; it is the only thing that makes the paper result mean anything.

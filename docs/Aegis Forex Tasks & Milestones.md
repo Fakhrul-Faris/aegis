@@ -2,7 +2,7 @@
 
 **Aegis Forex — Session-Confirmed Momentum (SCM)**
 
-*Version 1.1 · June 2026 · Companion to `Aegis Tasks & Milestones.md` and `Aegis Concept.md`*
+*Version 1.1 · June 2026 · Companion to `docs/Aegis Tasks & Milestones.md` and `docs/Aegis Concept.md`*
 
 How to use this document: work top to bottom. **Nothing goes live until FX6 passes.** Crypto and forex run in **parallel research + paper/demo only** — they share risk math and monitoring patterns, not strategies. Update the KPI log (Section 5) every Sunday. Gates are pass/fail — "almost" is fail.
 
@@ -39,10 +39,10 @@ How to use this document: work top to bottom. **Nothing goes live until FX6 pass
 | **ID** | **Milestone** | **Target** | **Gate (all must hold)** | **Status** |
 | ------ | ------------- | ---------- | ------------------------ | ---------- |
 | FX0 | Forex research infra | Week 1 | Historical data for 4 majors; Fusion-style cost model; economic calendar table; SCM config skeleton | ☑ Jun 14 |
-| FX1 | Single-setup backtest | Week 2 | EUR/USD · Asian range → London break · 3 OOS windows; **baseline FAIL** — see `research/forex-scm-fx1-baseline.md` | ☑ Jun 14 |
-| FX2 | Confirmation layer | Week 3 | ADR + DXY + calendar confirms; continuation pivot — **FAIL** `research/forex-scm-fx2-verdict.md` | ☑ Jun 14 |
-| FX2b | Research sweep (4 forks) | Week 3+ | HistData, GBP/USD, tight filters, NY fade, event aftermath — **FAIL** `research/forex-scm-sweep-verdict.md` | ☑ Jun 14 |
-| FX3 | **Recipe frozen** | Week 4 | Event Spike Fade H11b-4; 2/3 OOS windows pass — `research/forex-fx3-verdict.md` | ☑ Jun 14 |
+| FX1 | Single-setup backtest | Week 2 | EUR/USD · Asian range → London break · 3 OOS windows; **baseline FAIL** — see `research/forex/forex-scm-fx1-baseline.md` | ☑ Jun 14 |
+| FX2 | Confirmation layer | Week 3 | ADR + DXY + calendar confirms; continuation pivot — **FAIL** `research/forex/forex-scm-fx2-verdict.md` | ☑ Jun 14 |
+| FX2b | Research sweep (4 forks) | Week 3+ | HistData, GBP/USD, tight filters, NY fade, event aftermath — **FAIL** `research/forex/forex-scm-sweep-verdict.md` | ☑ Jun 14 |
+| FX3 | **Recipe frozen** | Week 4 | Event Spike Fade H11b-4; 2/3 OOS windows pass — `research/forex/forex-fx3-verdict.md` | ☑ Jun 14 |
 | FX4 | Demo broker adapter | Week 5–6 | OANDA practice: ingest, paper executor, reconcile; edge framework doc | ☑ |
 | FX5 | **DEMO PAPER STARTS** | Week 7 | **Fly collector** runs forex + unified Telegram summary | ☑ Jun 17 |
 | FX6 | Demo paper gates | Week 15 | ≥8 weeks; ≥80 trades; expectancy CI overlaps backtest; **demo win rate ≥55% and within ±10% of backtest**; 3 demo resets with stable recipe; zero unexplained breaks in final 4 weeks | ☐ |
@@ -65,7 +65,7 @@ How to use this document: work top to bottom. **Nothing goes live until FX6 pass
 - [x] DXY proxy series (or USD index basket) for confirmation layer
 - [x] Fusion Markets RAW cost model: spread + commission per lot → `risk/costs.py` forex variant
 - [x] `economic_calendar` SQLite table: event time, currency, impact tier, description; seed 2 years forward + 10 years back for research
-- [x] Research memo template: `research/forex-scm-verdict.md`
+- [x] Research memo template: `research/forex/forex-scm-verdict.md`
 
 ### FX-A.2 Session engine — spine only (FX1)
 
@@ -74,7 +74,7 @@ How to use this document: work top to bottom. **Nothing goes live until FX6 pass
 - [x] Hard stop + min 1.5R target; no discretion — rules only
 - [x] Walk-forward harness: 3 non-overlapping OOS windows (`aegis-backtest-forex-scm`)
 - [x] Report per window: trades, win rate, avg R, expectancy ±90% CI, max DD
-- [x] **FX1 gate result:** 0/3 windows pass — see `research/forex-scm-fx1-baseline.md`. **Pivot:** FX2 confirms OR London continuation setup
+- [x] **FX1 gate result:** 0/3 windows pass — see `research/forex/forex-scm-fx1-baseline.md`. **Pivot:** FX2 confirms OR London continuation setup
 
 ### FX-A.3 Confirmation layer (FX2)
 
@@ -85,14 +85,14 @@ How to use this document: work top to bottom. **Nothing goes live until FX6 pass
 - [x] Confirmation score: setup + ADR + DXY + calendar; enter if score ≥ threshold
 - [x] Ablation: `--ablation` and `--no-confirms` on `aegis-backtest-forex-scm`
 - [x] **Pivot:** `london_continuation` setup in `config/forex.yaml`
-- [x] **FX2 gate result:** FAIL (0/3) — see `research/forex-scm-fx2-verdict.md`. W1 continuation +0.071R but not replicable
+- [x] **FX2 gate result:** FAIL (0/3) — see `research/forex/forex-scm-fx2-verdict.md`. W1 continuation +0.071R but not replicable
 
 ### FX-A.4 Recipe freeze (FX3)
 
 - [x] Lock Event Spike Fade parameters in `config/forex.yaml`; hash `c81e8206bca8393b` in `config_freeze`
 - [x] Final walk-forward on frozen H11b-4 across 3 windows — **2/3 PASS**
 - [x] W2 memo: 59.1% WR (−0.9pp), CI straddles 0 — marginal, not structural
-- [x] Write `research/forex-scm-verdict.md` — **GO for demo (event fade only)**
+- [x] Write `research/forex/forex-scm-verdict.md` — **GO for demo (event fade only)**
 - [x] SCM v1 remains parked; `active_strategy: event_spike_fade`
 
 ### FX-A.5 Research sweep — four forks (post-FX2)
@@ -101,7 +101,7 @@ How to use this document: work top to bottom. **Nothing goes live until FX6 pass
 - [x] NY fade + event aftermath setups (`forex_session.py`)
 - [x] Research sweep CLI: `aegis-forex-research-sweep` — pairs × setups × filter profiles
 - [x] GBP/USD Yahoo data + sweep; tight filters (25% ADR, score ≥4)
-- [x] **Sweep gate result:** **0/16 variants pass** — see `research/forex-scm-sweep-verdict.md`
+- [x] **Sweep gate result:** **0/16 variants pass** — see `research/forex/forex-scm-sweep-verdict.md`
 - [x] Best: EURUSD london_continuation tight — avg +0.028R, 47.4% WR (0/3 windows)
 
 - [x] **Deep history re-sweep (ForexSB):** ~100k bars/pair 2010–2026 — **0/16 pass**; EUR continuation edge gone on full sample
@@ -110,7 +110,7 @@ How to use this document: work top to bottom. **Nothing goes live until FX6 pass
 
 - [x] ForexSB import: EURUSD/GBPUSD H1, EURUSD M15, USDJPY H1
 - [x] `aegis-forex-hypothesis-sweep` — 27 runnable hypotheses on 2010–2026 data
-- [x] **Gate result:** **0/27 pass** — see `research/forex-hypothesis-sweep-verdict.md`
+- [x] **Gate result:** **0/27 pass** — see `research/forex/forex-hypothesis-sweep-verdict.md`
 - [x] Closest: **H11 Event Spike Fade** — 65.6% WR but only ~40 trades/window (need ≥80)
 - [x] LER family (H1–H5): ~11% WR, fat-tail W1 wins — wrong payoff profile
 - [x] 15m timing (H6–H9): WR ~45–52%, negative expectancy
@@ -138,7 +138,7 @@ How to use this document: work top to bottom. **Nothing goes live until FX6 pass
 **FX3 gate:** ☑ **PASS** (3/3) H11c-3 EURUSD+GBPUSD — hash `6eaf09bf78b0d905`  
 **FX4 gate:** ☑ run `aegis-forex-fx4-check --round-trip` — PASS (Yahoo fallback; add OANDA for live quotes)
 
-**Design principles (FX4+):** see `research/forex-edge-framework.md` — edge taxonomy, hypothesis+reason, walk-forward, realistic costs (spread+1–3pip slip+latency+requote), 30–60 day paper, future-proof registry, overfitting guards.
+**Design principles (FX4+):** see `research/forex/forex-edge-framework.md` — edge taxonomy, hypothesis+reason, walk-forward, realistic costs (spread+1–3pip slip+latency+requote), 30–60 day paper, future-proof registry, overfitting guards.
 
 ---
 
@@ -146,7 +146,7 @@ How to use this document: work top to bottom. **Nothing goes live until FX6 pass
 
 ### FX-B.1 Broker adapter (demo only)
 
-- [x] Pick demo data: **Yahoo Finance** (open-source) — see `research/forex-broker-choice.md`
+- [x] Pick demo data: **Yahoo Finance** (open-source) — see `research/forex/forex-broker-choice.md`
 - [x] `Venue.FOREX_DEMO` + `YahooForexMarketData` / `ForexPaperExecutor`
 - [x] OANDA optional (`demo.data_source: oanda`); not required for paper
 - [x] 1h candle ingest + gap detection (`aegis-forex-ingest`)
@@ -184,7 +184,7 @@ How to use this document: work top to bottom. **Nothing goes live until FX6 pass
 - [x] Calendar WATCH alerts — 15m sidecar on Fly (same Telegram bot)
 - [x] **Daily scoreboard** — collector `send_daily_summary` (crypto + forex, 16:00 UTC)
 - [x] **Weekly KPI** — Sunday 17:00 UTC in collector; `/forex_kpi` on Fly bot
-- [x] Launch doc: `research/forex-fx5-launch.md`
+- [x] Launch doc: `research/forex/forex-fx5-launch.md`
 - [x] `fly deploy -a aegis-collector` — **Jun 17** (v10: intraday sidecar + HTML summary + Telegram bot)
 
 **FX5 gate:** ☑ Fly collector startup: forex paper cycle + calendar sidecar + `/forex`; intraday sidecar + `/intraday`; HTML daily summary. Paper clock day 3 (started Jun 14 ingest fix).
@@ -202,7 +202,7 @@ How to use this document: work top to bottom. **Nothing goes live until FX6 pass
 - [x] Head-to-head compare + null-control hint — `aegis-forex-recipe-compare`
 - [x] Run manifests — `research/runs/<run_id>/manifest.json`
 - [x] Gate contract skill — `research/skills/event_spike_fade/SKILL.md`
-- [x] Parking lot — `research/forex-parking-lot.md`
+- [x] Parking lot — `research/forex/forex-parking-lot.md`
 
 **FX-R1 gate:** ☑ `aegis-forex-fx-r-check` PASS locally
 
@@ -246,7 +246,7 @@ How to use this document: work top to bottom. **Nothing goes live until FX6 pass
 - [ ] Compare demo slippage/spread vs model; flag if worse 2 weeks running
 - [ ] Review skips: are filters doing intended work?
 - [ ] Review calendar days: alerts fired vs trades taken vs outcome
-- [ ] **Do not tweak code or params** unless gate failure — log ideas in `research/forex-parking-lot.md`
+- [ ] **Do not tweak code or params** unless gate failure — log ideas in `research/forex/forex-parking-lot.md`
 
 ### FX-C.4 Demo exit criteria (FX6 gate)
 
@@ -278,7 +278,7 @@ How to use this document: work top to bottom. **Nothing goes live until FX6 pass
 - [ ] Compare demo slippage/spread vs model; flag if worse 2 weeks running
 - [ ] Review skips: are filters doing intended work?
 - [ ] Review calendar days: alerts fired vs trades taken vs outcome
-- [ ] **Do not tweak code or params** unless gate failure — log ideas in `research/forex-parking-lot.md`
+- [ ] **Do not tweak code or params** unless gate failure — log ideas in `research/forex/forex-parking-lot.md`
 
 ### FX-C.4 Demo exit criteria (FX6 gate)
 
@@ -423,7 +423,7 @@ One row per week, every Sunday. First row starts at FX5.
 # **7 Relationship to Crypto Track**
 
 
-| | **Crypto (`Aegis Tasks & Milestones.md`)** | **Forex (this doc)** |
+| | **Crypto (`docs/Aegis Tasks & Milestones.md`)** | **Forex (this doc)** |
 | -- | ------------------------------------------ | -------------------- |
 | Strategy | Strategy A swing + anomaly scanner; Strategy C intraday (parallel) | Event Spike Fade H11b-4 |
 | Status | M1 ☑ PASS Jun 17; M4 soak → Jun 18; M5 ⏳ | FX5 ☑ PASS Jun 17; FX6 paper clock running |
@@ -444,7 +444,7 @@ One row per week, every Sunday. First row starts at FX5.
 - **Demo ≠ live:** demo fills optimistic — FX8 exists to close that gap
 - **Split attention:** if crypto M6 and FX6 overlap, weekly reviews cover both KPI tables — do not skip
 
-**Parking lot** (`research/forex-parking-lot.md` — create when needed):
+**Parking lot** (`research/forex/forex-parking-lot.md` — create when needed):
 - NY fade as second setup
 - ML on session features (v2 only)
 - Additional brokers

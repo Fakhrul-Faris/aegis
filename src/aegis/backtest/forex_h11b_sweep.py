@@ -375,8 +375,8 @@ def write_report(rows: list[dict], event_count: int, path: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="H11b event spike fade follow-up")
     parser.add_argument("--forex-config", default="config/forex.yaml")
-    parser.add_argument("--report", default="research/forex-h11b-report.md")
-    parser.add_argument("--verdict", default="research/forex-h11b-verdict.md")
+    parser.add_argument("--report", default="research/forex/forex-h11b-report.md")
+    parser.add_argument("--verdict", default="research/forex/forex-h11b-verdict.md")
     args = parser.parse_args()
 
     setup_logging("logs", "INFO")

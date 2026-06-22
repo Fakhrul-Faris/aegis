@@ -25,9 +25,9 @@ Telegram quick check: `/status` · `/paper` · `/forex` · `/intraday` · `/prog
 
 ### 1. KPI log (5 min)
 
-- [ ] Fill **crypto** row in `Aegis Tasks & Milestones.md` Section 5
-- [ ] Fill **forex** row in `Aegis Forex Tasks & Milestones.md` Section 5 (if FX5+)
-- [ ] Fill **intraday** row in `Aegis Intraday Tasks & Milestones.md` Section 5 (if ID2+)
+- [ ] Fill **crypto** row in `docs/Aegis Tasks & Milestones.md` Section 5
+- [ ] Fill **forex** row in `docs/Aegis Forex Tasks & Milestones.md` Section 5 (if FX5+)
+- [ ] Fill **intraday** row in `docs/Aegis Intraday Tasks & Milestones.md` Section 5 (if ID2+)
 
 Fields: equity, trades (wk/cum), win rate, expectancy CI, max DD, slippage vs model, uptime, gates breached, notes.
 

@@ -12,11 +12,12 @@ Both governed by a risk-based sizing engine (0.5-1.0% of equity per trade),
 a per-asset regime detector, correlation guards, and Monte Carlo-calibrated
 circuit breakers.
 
-The full specification lives in the repo root:
+The full specification lives in [`docs/`](docs/):
 
-- [`Aegis Concept.md`](Aegis%20Concept.md) v3.0 — architecture and math
-- [`Aegis Tasks & Milestones.md`](Aegis%20Tasks%20%26%20Milestones.md) — task list, gates, KPI log
-- [`Aegis Intraday Tasks & Milestones.md`](Aegis%20Intraday%20Tasks%20%26%20Milestones.md) — Strategy C/D day & scalp paper track
+- [`docs/Aegis Concept.md`](docs/Aegis%20Concept.md) v3.0 — architecture and math
+- [`docs/Aegis Tasks & Milestones.md`](docs/Aegis%20Tasks%20%26%20Milestones.md) — crypto main track M0–M9
+- [`docs/Aegis Forex Tasks & Milestones.md`](docs/Aegis%20Forex%20Tasks%20%26%20Milestones.md) — parallel forex track
+- [`docs/Aegis Intraday Tasks & Milestones.md`](docs/Aegis%20Intraday%20Tasks%20%26%20Milestones.md) — day-trading Strategy C/D
 
 ## Setup
 
@@ -50,6 +51,10 @@ uv run ruff format .     # format
 ## Layout
 
 ```
+docs/          strategy spec, milestone trackers, study notes
+config/        non-secret runtime configuration
+deploy/        ops runbook, launchd, Fly.io
+research/      offline studies — crypto/, forex/, goals/, runs/
 src/aegis/
   core/        domain models + venue-agnostic interfaces
   data/        candle ingestion, anomaly scanner, SQLite persistence
@@ -58,19 +63,18 @@ src/aegis/
   execution/   venue adapters, maker-then-IOC two-leg execution
   portfolio/   signal ranking and risk budget allocation
   monitor/     Telegram alerts, daily summaries
-research/      offline studies (screening runs, calibrations) - see its README
-config/        non-secret runtime configuration
 tests/
+data/          runtime SQLite + research DBs (gitignored)
+logs/          JSON logs, launchd output (gitignored)
 ```
 
-## Status
+Phase 2 complete; Phase 3 paper trading in progress. See
+[`docs/Aegis Tasks & Milestones.md`](docs/Aegis%20Tasks%20%26%20Milestones.md) for gates.
 
-Phase 2 complete; Phase 3 paper trading in progress. Milestones:
-
-- **M0, M2:** passed
+- **M0, M2, M4, M5:** passed
 - **M3 (Strategy B cointegration):** failed — Strategy A is the primary path
-- **M4:** 20+ testnet spreads + leg-2 drill done; **7-day soak running on Fly** (→ Jun 18)
-- **M1 gate:** ~Jun 13 — run `uv run aegis-m1-check` (do not restart Fly collector before then)
+- **M6:** in progress (8-week paper clock, ≥40 trades needed)
+- **Intraday ID1:** backtest failed (0 trades) — params/history review needed
 
 Mode: `paper`. Ops:
 

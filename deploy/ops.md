@@ -1,7 +1,7 @@
 # Aegis operations runbook
 
 Daily and milestone commands for running the stack smoothly. See
-`Aegis Tasks & Milestones.md` for gate criteria.
+`docs/Aegis Tasks & Milestones.md` for gate criteria.
 
 ## First boot / after clone
 
@@ -40,7 +40,7 @@ uv run aegis-doctor    # fix any issues before trusting the stack
 
 **Do not** run local `com.aegis.telegrambot` or `com.aegis.intraday` while Fly is polling (409 Conflict).
 
-See `research/forex-fx5-launch.md` and `Aegis Intraday Tasks & Milestones.md`.
+See `research/forex/forex-fx5-launch.md` and `docs/Aegis Intraday Tasks & Milestones.md`.
 
 ```bash
 fly status -a aegis-collector
@@ -129,7 +129,7 @@ Mark M1 in Tasks & Milestones when all checks pass.
 ## Testnet soak (M4) — **COMPLETE Jun 19**
 
 - Fly app: `aegis-testnet-soak` (sin) — **stopped**, `restart=no`
-- Verdict: **CONDITIONAL PASS** — `research/m4-soak-verdict.md`
+- Verdict: **CONDITIONAL PASS** — `research/crypto/m4-soak-verdict.md`
 - Review CLI: `uv run aegis-soak-review --db data/aegis.sqlite`
 - **Do not** restart soak without a new 7-day clock
 

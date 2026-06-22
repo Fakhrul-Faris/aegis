@@ -183,7 +183,7 @@ def run_fx4_check(
     finally:
         conn.close()
 
-    print(f"\nFX4 principles: see research/forex-edge-framework.md")
+    print(f"\nFX4 principles: see research/forex/forex-edge-framework.md")
     print(f"  paper gate: {cfg.demo.paper_days_min}–{cfg.demo.paper_days_max} days, "
           f">= {cfg.demo.min_closed_trades} trades")
 

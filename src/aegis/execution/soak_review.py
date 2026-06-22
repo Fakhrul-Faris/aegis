@@ -96,7 +96,7 @@ def analyze_soak(sqlite_path: str) -> str:
                 "Auto pass: anomalies=0 AND spreads_fail=0 in 7d window",
                 f"  → {'PASS' if win.events.get('anomaly', 0) == 0 and win.events.get('spread_fail', 0) == 0 else 'NEEDS REVIEW'}",
                 "",
-                "See research/m4-soak-verdict.md for human CONDITIONAL PASS rationale.",
+                "See research/crypto/m4-soak-verdict.md for human CONDITIONAL PASS rationale.",
             ]
         )
         return "\n".join(lines)
@@ -133,7 +133,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--note",
-        default="7d Fly soak; testnet spread/anomaly noise documented in research/m4-soak-verdict.md",
+        default="7d Fly soak; testnet spread/anomaly noise documented in research/crypto/m4-soak-verdict.md",
     )
     args = parser.parse_args()
 

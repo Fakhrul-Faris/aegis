@@ -248,7 +248,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Forex SCM full research sweep")
     parser.add_argument("--forex-config", default="config/forex.yaml")
     parser.add_argument("--quick", action="store_true")
-    parser.add_argument("--report", default="research/forex-scm-sweep-report.md")
+    parser.add_argument("--report", default="research/forex/forex-scm-sweep-report.md")
     args = parser.parse_args()
 
     setup_logging("logs", "INFO")

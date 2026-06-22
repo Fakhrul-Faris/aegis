@@ -252,8 +252,8 @@ def write_report(rows: list[dict], imports: dict[str, int], path: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Forex hypothesis sweep H1–H26")
     parser.add_argument("--forex-config", default="config/forex.yaml")
-    parser.add_argument("--report", default="research/forex-hypothesis-sweep-report.md")
-    parser.add_argument("--verdict", default="research/forex-hypothesis-sweep-verdict.md")
+    parser.add_argument("--report", default="research/forex/forex-hypothesis-sweep-report.md")
+    parser.add_argument("--verdict", default="research/forex/forex-hypothesis-sweep-verdict.md")
     args = parser.parse_args()
 
     setup_logging("logs", "INFO")
@@ -291,7 +291,7 @@ def main() -> None:
                 "## Verdict",
                 "",
                 "**No hypothesis passed.** Forex remains in parking lot.",
-                "See `research/forex-hypothesis-sweep-report.md` for full matrix.",
+                "See `research/forex/forex-hypothesis-sweep-report.md` for full matrix.",
             ]
         )
     Path(args.verdict).write_text("\n".join(verdict_lines))

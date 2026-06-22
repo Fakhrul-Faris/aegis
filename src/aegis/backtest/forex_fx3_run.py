@@ -162,7 +162,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Forex FX3 frozen recipe replication")
     parser.add_argument("--forex-config", default="config/forex.yaml")
     parser.add_argument("--reset-freeze", action="store_true")
-    parser.add_argument("--verdict", default="research/forex-fx3-verdict.md")
+    parser.add_argument("--verdict", default="research/forex/forex-fx3-verdict.md")
     args = parser.parse_args()
 
     setup_logging("logs", "INFO")

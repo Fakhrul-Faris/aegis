@@ -1,6 +1,6 @@
 # Aegis Study Notes
 
-*For non-finance readers · June 2026 · Companion to `Aegis Concept.md` and `Aegis Tasks & Milestones.md`*
+*For non-finance readers · June 2026 · Companion to `docs/Aegis Concept.md` and `docs/Aegis Tasks & Milestones.md`*
 
 Read top to bottom once, then use **flashcards** for memory and the **cheat sheet** before Telegram checks or milestone reviews.
 
@@ -182,8 +182,8 @@ Print or keep this open on your phone.
 
 | File | Use when |
 |------|----------|
-| `Aegis Concept.md` | Full strategy + math spec |
-| `Aegis Tasks & Milestones.md` | What’s done, gates, dates |
+| `docs/Aegis Concept.md` | Full strategy + math spec |
+| `docs/Aegis Tasks & Milestones.md` | What’s done, gates, dates |
 | `aegis/research/2026-06-strategy_b_verdict.md` | Why B stopped |
 | `aegis/research/2026-06-strategy_a_baseline_backtest.md` | Why EMA-only isn’t enough |
 | `aegis/deploy/ops.md` | Daily ops commands |

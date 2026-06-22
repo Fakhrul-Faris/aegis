@@ -25,7 +25,7 @@
 | **Tight filters** | 25% ADR cap + confirm score ≥4 | Marginal lift on EUR continuation (+0.028R vs +0.005R default) but **WR still ~47%** |
 | **NY fade + event aftermath** | New setups in `forex_session.py` | **Negative expectancy** all windows; insufficient trades on tight NY fade |
 
-CLI: `aegis-forex-research-sweep` → `research/forex-scm-sweep-report.md`
+CLI: `aegis-forex-research-sweep` → `research/forex/forex-scm-sweep-report.md`
 
 ## Gate result
 

@@ -21,7 +21,7 @@ async def send_ping() -> bool:
     notifier = notifier_from_config(cfg)
     if not notifier.enabled:
         print("FAIL: set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID in .env")
-        print("      (same bot for crypto + forex — see research/forex-fx5-launch.md)")
+        print("      (same bot for crypto + forex — see research/forex/forex-fx5-launch.md)")
         return False
     try:
         ok = await notifier.send(

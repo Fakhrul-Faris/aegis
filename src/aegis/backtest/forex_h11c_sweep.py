@@ -330,8 +330,8 @@ def write_report(rows: list[dict], path: Path) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="H11c multi-pair frequency sweep")
     parser.add_argument("--forex-config", default="config/forex.yaml")
-    parser.add_argument("--report", default="research/forex-h11c-report.md")
-    parser.add_argument("--verdict", default="research/forex-h11c-verdict.md")
+    parser.add_argument("--report", default="research/forex/forex-h11c-report.md")
+    parser.add_argument("--verdict", default="research/forex/forex-h11c-verdict.md")
     args = parser.parse_args()
 
     setup_logging("logs", "INFO")
