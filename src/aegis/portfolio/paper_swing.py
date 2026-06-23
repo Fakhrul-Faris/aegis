@@ -18,7 +18,6 @@ from aegis.core.interfaces import MarketData
 from aegis.core.models import OrderRequest, OrderType, Side, Venue
 from aegis.data import db
 from aegis.data.scanner_join import latest_anomaly_in_window
-from aegis.execution import build_market_data
 from aegis.execution.paper import PaperExecutor
 from aegis.risk.engine import RiskEngine
 from aegis.risk.sizing import concurrent_risk_allows, size_position
@@ -432,25 +431,33 @@ async def run_paper_cycle(cfg: AegisConfig, conn, risk: RiskEngine) -> None:
         logger.warning("paper cycle skipped — breaker active")
         return
 
-    md = build_market_data(Venue.KRAKEN)
+    from aegis.execution.sqlite_market_data import SqliteCachedMarketData
+
+    md = SqliteCachedMarketData(conn, Venue.KRAKEN)
     marks: dict[str, float] = {}
-    try:
-        for kraken_symbol in cfg.data.kraken_symbols:
-            base = kraken_symbol.split("/")[0]
+    for kraken_symbol in cfg.data.kraken_symbols:
+        base = kraken_symbol.split("/")[0]
+        try:
             await _check_exits(cfg, conn, md, kraken_symbol, base)
+        except Exception as exc:
+            logger.warning(
+                "paper exit check skipped",
+                extra={"symbol": base, "pair": kraken_symbol, "error": repr(exc)},
+            )
 
-        equity = _paper_equity(conn, marks)
+    equity = _paper_equity(conn, marks)
 
-        for kraken_symbol in cfg.data.kraken_symbols:
-            base = kraken_symbol.split("/")[0]
+    for kraken_symbol in cfg.data.kraken_symbols:
+        base = kraken_symbol.split("/")[0]
+        try:
             await _try_entry(cfg, conn, md, risk, kraken_symbol, base, equity)
-            try:
-                _, ask = await md.fetch_top_of_book(kraken_symbol)
-                marks[base] = ask
-            except Exception:
-                pass
-    finally:
-        await md.close()
+            _, ask = await md.fetch_top_of_book(kraken_symbol)
+            marks[base] = ask
+        except Exception as exc:
+            logger.warning(
+                "paper entry skipped",
+                extra={"symbol": base, "pair": kraken_symbol, "error": repr(exc)},
+            )
 
     equity = _paper_equity(conn, marks)
     db.insert_equity_snapshot(

@@ -67,3 +67,38 @@ def test_scanner_join_case_insensitive(tmp_path):
         context_json="{}",
     )
     assert has_anomaly_in_window(conn, "SOL", bar_open, "4h")
+
+
+def test_sqlite_cached_market_data_reads_db(tmp_path):
+    import asyncio
+    import time
+    from datetime import UTC, datetime
+
+    from aegis.core.models import Candle, Venue
+    from aegis.execution.sqlite_market_data import SqliteCachedMarketData
+
+    conn = db.connect(tmp_path / "t.sqlite")
+    try:
+        db.upsert_candles(
+            conn,
+            [
+                Candle(
+                    venue=Venue.KRAKEN,
+                    symbol="MANA/USDT",
+                    timeframe="4h",
+                    open_time=datetime.fromtimestamp(time.time(), tz=UTC),
+                    open=0.3,
+                    high=0.31,
+                    low=0.29,
+                    close=0.305,
+                    volume=1000.0,
+                )
+            ],
+        )
+        md = SqliteCachedMarketData(conn, Venue.KRAKEN)
+        candles = asyncio.run(md.fetch_candles("MANA/USDT", "4h", limit=5))
+        assert len(candles) == 1
+        bid, ask = asyncio.run(md.fetch_top_of_book("MANA/USDT"))
+        assert bid < 0.305 < ask
+    finally:
+        conn.close()

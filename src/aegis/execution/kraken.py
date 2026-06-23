@@ -6,6 +6,7 @@ until then Kraken is a data source.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 
 import ccxt.async_support as ccxt
@@ -13,10 +14,13 @@ import ccxt.async_support as ccxt
 from aegis.core.interfaces import AccountState, MarketData, OrderExecutor
 from aegis.core.models import Balance, Candle, Fill, OrderRequest, Position, Venue
 
+_RETRIES = 3
+_RETRY_BASE_S = 2.0
+
 
 class KrakenMarketData(MarketData):
     def __init__(self, exchange: ccxt.kraken | None = None):
-        self._exchange = exchange or ccxt.kraken({"enableRateLimit": True})
+        self._exchange = exchange or ccxt.kraken({"enableRateLimit": True, "timeout": 30_000})
 
     async def close(self) -> None:
         await self._exchange.close()
@@ -30,9 +34,20 @@ class KrakenMarketData(MarketData):
     ) -> list[Candle]:
         since_ms = int(since.timestamp() * 1000) if since is not None else None
         # Kraken's OHLC endpoint caps at 720 rows per call.
-        rows = await self._exchange.fetch_ohlcv(
-            symbol, timeframe, since=since_ms, limit=min(limit, 720)
-        )
+        last_exc: Exception | None = None
+        for attempt in range(_RETRIES):
+            try:
+                rows = await self._exchange.fetch_ohlcv(
+                    symbol, timeframe, since=since_ms, limit=min(limit, 720)
+                )
+                break
+            except (ccxt.RequestTimeout, ccxt.NetworkError, ccxt.ExchangeNotAvailable) as exc:
+                last_exc = exc
+                if attempt == _RETRIES - 1:
+                    raise
+                await asyncio.sleep(_RETRY_BASE_S * (2**attempt))
+        else:
+            raise last_exc  # type: ignore[misc]
         return [
             Candle(
                 venue=Venue.KRAKEN,
